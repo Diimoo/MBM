@@ -1,0 +1,207 @@
+--- BESCHREIBUNG.md
++++ BESCHREIBUNG_v1.1.md
+@@ -1,4 +1,4 @@
+-# Digitales Gehirn – Technische Spezifikation (v1.0)
++# Digitales Gehirn – Technische Spezifikation (v1.1)
+ 
+ ## Basierend auf: Kandel et al., Principles of Neural Science, 5th Edition
+ 
+@@ -48,6 +48,8 @@
+ 
+ **Option B: Izhikevich-Modell** (für reichere Dynamik)
+ 
++> **NICHT IM KANDEL**: Das Izhikevich-Modell ist eine vereinfachte Alternative zu Hodgkin-Huxley aus der Computational Neuroscience (Izhikevich 2003).
++
+ ```
+ v' = 0.04v² + 5v + 140 - u + I
+ u' = a(bv - u)
+@@ -98,6 +100,8 @@
+ 
+ **Mit Short-Term Plasticity (STP):**
+ 
++> **NICHT IM KANDEL**: Das Tsodyks-Markram-Modell formalisiert STP. Kandel beschreibt Facilitation/Depression konzeptuell (Kap. 12, S. 285–290), aber nicht diese Gleichungen.
++
+ ```
+ # Tsodyks-Markram-Modell
+ dx/dt = (1-x)/τ_D - u×x×δ(t-t_spike)    # Depression
+@@ -166,6 +170,10 @@
+ # Eligibility Trace
+ de_ij/dt = -e_ij/τ_e + STDP(pre_i, post_j)
+ 
++Typische Parameter:
++τ_e = 100–1000 ms (Eligibility-Fenster)
++η = 0.001–0.01 (Lernrate)
++
+ # Gewichtsupdate
+ Δw_ij = η × M(t) × e_ij
+ 
+@@ -175,7 +183,9 @@
+ # - Acetylcholin (Attention)
+ ```
+ 
+-> **Hinweis**: Die explizite 3-Faktor-Formel ist NICHT IM KANDEL. Kandel beschreibt Dopamin-Modulation von Plastizität, aber nicht als formale Lernregel.
++> **Hinweis**: Die explizite 3-Faktor-Formel ist NICHT IM KANDEL.
++>
++> Klarstellung: STDP ist die lokale **Basis** (2-Faktor). Durch Eligibility Trace + Neuromodulatoren (DA/ACh/NE) wird daraus funktional eine 3-Faktor-Regel (gated plasticity). Kandel beschreibt Dopamin-Modulation von Plastizität, aber nicht als formale Lernregel.
+ 
+ ### 3.3 Homöostatische Plastizität
+ 
+@@ -242,6 +252,8 @@
+ I_fast → E (Feedback-Inhibition)
+ I_slow → E (laterale Inhibition)
+ ```
++
++> **NICHT IM KANDEL**: Die Zuordnung „I_fast = PV+“ und „I_slow = SST+“ ist eine gängige moderne Klassifikation von Interneuron-Gruppen, wird aber im Kandel (5e) nicht explizit in dieser Form als Typ-Label geführt.
+ 
+ **Hierarchie:**
+ 
+@@ -277,6 +289,20 @@
+ - Z(t): Aktivitätsmuster (Repräsentation)
+ - W: Synaptische Gewichte (lernbar)
+ 
++### 4.X Lernregel
++
++```
++# Kortikale Plastizität
++dW/dt = η × e_ij × M(t)
++
++wobei:
++- e_ij: Eligibility Trace (aus STDP)
++- M(t): Modulator-Signal (ACh für Attention, DA für Reward)
++- η ≈ 0.001
++```
++
++> Biologische Basis: LTP/LTD im Kortex folgt ähnlichen Regeln wie im Hippocampus (Kandel5e, Kap. 67, S. 1490–1500), moduliert durch cholinerge Eingänge (Kap. 46, S. 1054–1056).
++
+ ### 4.7 Tests/Benchmarks
+ 
+ - Stabile Feuerraten (5–30 Hz)
+@@ -313,10 +339,24 @@
+ gate = σ(TRN_input + cortical_feedback)
+ gain = f(modulators)  # ACh, NE erhöhen Gain
+ 
++Definition:
++gain ∈ [0.1, 2.0] (multiplikativer Faktor)
++gain = 1.0 + α_ACh × ACh + α_NE × NE
++mit α_ACh, α_NE ≈ 0.5
++
+ Modi:
+ - Tonic: gain hoch, gate offen → Relay
+ - Burst: gain niedrig, gate variabel → Gating
+-```
++
++Zustandsübergang (formal):
++mode := "tonic" wenn ACh > θ_ACh ELSE "burst"
++gate[k] := sigmoid(selection[k] + feedback[k] - inhibition[k])
++
++Hinweis:
++gate lernt **nicht** (keine Gewichtsänderung) – es wird durch BG-Selection und kortikales Feedback bestimmt.
++```
++
++> **NICHT IM KANDEL**: Diese expliziten Gleichungen (R_out, gate, gain) sind ein vereinfachtes Computational-Model; Kandel beschreibt die thalamo-kortikale Verschaltung und Modulation, aber nicht diese Formeln.
+ 
+ ### 5.4 Schnittstellen
+ 
+@@ -407,6 +447,11 @@
+ | Reward r_t | Selection an Thalamus |
+ | Dopamin δ_t | Action commitment |
+ 
++Schnittstellen-Signatur (formal):
++```
++BG.step(cortex_state, reward, context) → (action_selection, DA_signal)
++```
++
+ ### 6.5 Zustände
+ 
+ - V(s): Value-Funktion (im Critic)
+@@ -465,6 +510,10 @@
+ ```
+ # Pattern Separation in DG
+ DG = sparse_encode(EC_input)  # k-winner-take-all
++
++Parameter:
++k ≈ 2–5% der DG-Neuronen (Sparsity)
++Expansion-Ratio: DG_size ≈ 5–10 × EC_size
+ 
+ # Storage in CA3
+ CA3_pattern = DG
+@@ -498,11 +547,12 @@
+ 
+ ### 7.5 Schnittstellen
+ 
+-| Input | Output |
+-|-------|--------|
+-| Kortex-Zustände Z(t) | Keys/Indices für Recall |
+-| Kontextsignale | Replay-Sequenzen |
+-| Novelty-Signal | |
++| Interface | Signatur | Beschreibung |
++|-----------|----------|--------------|
++| encode() | encode(Z, ctx) → id | Speichert Episode |
++| retrieve() | retrieve(cue) → Z | Ruft Episode ab |
++| replay() | replay(n) → [Z₁...Zₙ] | Offline-Replay |
++| novelty() | novelty(Z) → bool | Prüft Neuheit |
+ 
+ ### 7.6 Zustände
+ 
+@@ -571,8 +621,8 @@
+ 
+ | Input | Output |
+ |-------|--------|
+-| Efferenzkopie (Plan) | Korrigierte Steuerwerte |
+-| Error-Signal | Timing-Parameter |
++| Efferenzkopie (Plan) | Korrigierte Steuerwerte (correction: ℝ^n) |
++| Error-Signal | Timing-Anpassung (timing_offset: ℝ, ms) |
+ | Sensorisches Feedback | |
+ 
+ ### 8.5 Zustände
+@@ -620,8 +670,8 @@
+ 
+ ```python
+ class Neuromodulators:
+-    def compute_DA(self, reward, value_pred):
+-        return reward - value_pred  # RPE
++    def compute_DA(self, reward, value_pred, value_next):
++        return reward + self.gamma * value_next - value_pred  # TD-RPE
+     
+     def compute_NE(self, surprise):
+         return sigmoid(surprise - threshold_NE)
+@@ -648,7 +698,16 @@
+ | Attention demand | ACh: Gain-Signal |
+ | Context | 5HT: Horizon-Parameter |
+ 
+-### 9.4 Tests/Benchmarks
++### 9.4 Zustände
++
++| Zustand | Typ | Beschreibung |
++|---------|-----|--------------|
++| DA_tonic | ℝ | Tonic Dopamin-Level (Baseline) |
++| NE_level | ℝ | Aktueller Noradrenalin-Pegel |
++| ACh_level | ℝ | Aktueller Acetylcholin-Pegel |
++| 5HT_level | ℝ | Aktueller Serotonin-Pegel |
++
++### 9.5 Tests/Benchmarks
+ 
+ - DA korreliert mit Reward-Überraschung
+ - NE erhöht nach unerwarteten Ereignissen
+@@ -680,6 +739,10 @@
+     V := W_in @ new_input
+ ```
+ 
++> **Klarstellung**: Working Memory lernt nicht im Sinne von Gewichtsänderungen. Die Plastizität liegt in der Konsolidierung (WM → Hippocampus → Kortex), nicht im WM-Modul selbst.
++>
++> **NICHT IM KANDEL**: Die konkrete „~4 Items“-Kapazität ist nicht als exakte Zahl im Kandel spezifiziert; behandle `k` als Hyperparameter (typisch 3–5).
++
+ ### 10.2 Episodisches Gedächtnis
+ 
+ > "Episodic memory depends on the hippocampus and involves the encoding of specific events in their spatiotemporal context." (Kandel5e, Kap. 65, S. 1445–1455)
+@@ -696,6 +759,10 @@
+ # Langsame Extraktion in Kortex
+ for replay_episode in hippocampus.replay():
+     cortex.weights += η_slow × hebbian_update(replay_episode)
++
++# Definition (Add-on, NICHT IM KANDEL):
++hebbian_update(x) = outer(x, x) - W  # Oja's Rule für Normalisierung
++η_slow ≈ 0.001 × η_hippocampus
+ 
+ # Verteilte Repräsentationen
+ semantic_vector = cortex.encode(concept)
