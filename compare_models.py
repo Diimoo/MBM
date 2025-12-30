@@ -29,10 +29,10 @@ def eval_model(path, name, device, size=5, episodes=200):
         max_steps = size * size * 2
         while not done and steps < max_steps:
             obs = Obs(x=torch.from_numpy(obs_np).unsqueeze(0).to(device))
-            # New signature: action, log_prob, value, state, log, entropy
-            out = brain.step(obs, prev_reward, prev_done)
-            action = out[0]
-            obs_np, reward, done, _ = env.step(int(action.item()))
+            # Use act() for evaluation
+            action, _, _, _, _, _ = brain.act(obs, prev_reward, prev_done)
+            action_idx = int(action.item())
+            obs_np, reward, done, _ = env.step(action_idx)
             ep_ret += reward
             prev_reward = torch.tensor([[reward]], dtype=torch.float32, device=device)
             prev_done = torch.tensor([[done]], device=device)

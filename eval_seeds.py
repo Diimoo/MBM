@@ -39,8 +39,8 @@ def run_eval():
             steps = 0
             while (not done) and steps < max_steps:
                 obs = Obs(x=torch.from_numpy(obs_np).unsqueeze(0).to(device))
-                # Note: Brain now returns (action, log_prob, value, state, log, entropy)
-                action,_,_,_,_,_ = brain.step(obs, prev_reward, prev_done)
+                # Use act() for evaluation
+                action, _, _, _, _, _ = brain.act(obs, prev_reward, prev_done)
                 obs_np, r, done, _ = env.step(int(action.item()))
                 ep_ret += float(r)
                 prev_reward = torch.tensor([[r]], dtype=torch.float32, device=device)

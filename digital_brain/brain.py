@@ -60,15 +60,16 @@ class DigitalBrain(nn.Module):
         )
         self._prev_pred = torch.zeros(batch_size, self.config['d_obs'], device=device)
 
-    def step(self, obs: Obs, reward: torch.Tensor, done: torch.Tensor):
+    def step(self, obs: Obs, reward: torch.Tensor, done: torch.Tensor, learn: bool = True):
         """
         Args:
             obs: current observation (Obs.x shape (B, d_obs))
             reward: last env reward (shape (B,1) or (B,))
             done: last env done flag (shape (B,1) or (B,))
+            learn: if True, updates plastic weights and encodes to hippocampus.
 
         Returns:
-            action, log_prob, value, state, log
+            action, log_prob, value, state, log, entropy
         """
         B = obs.x.shape[0]
         if self.state is None:
@@ -95,6 +96,7 @@ class DigitalBrain(nn.Module):
                 
                 # Reset mods for done envs to default
                 mask = (1 - done_mask.squeeze().float())
+                if mask.dim() == 0: mask = mask.unsqueeze(0) # Handle B=1
                 self._prev_mods.DA = self._prev_mods.DA * mask
                 self._prev_mods.NE = self._prev_mods.NE * mask
                 self._prev_mods.ACh = self._prev_mods.ACh * mask + (1 - mask) * 0.5
@@ -125,14 +127,19 @@ class DigitalBrain(nn.Module):
         # 5) Neuromodulators (use pred_error as ACh proxy)
         mods = self.neuromods.compute(z_t, da.squeeze(1), novelty, pred_err_vec)
 
-        # 6) Plasticity Update (3-Factor Rule)
-        # Apply neuromodulators to update plastic weights in Cortex
-        self.cortex.update_weights(mods, new_cortex_state)
+        # 6) Learning-related side effects
+        if learn:
+            # Plasticity Update (3-Factor Rule)
+            self.cortex.update_weights(mods, new_cortex_state)
+            
+            # Hippocampus encode on novelty/reward (subset selection handled in hippocampus.encode)
+            if torch.any(novelty > 0.6) or torch.any(reward_b != 0):
+                self.hippocampus.encode(z_t)
 
         # 7) Cerebellum (not used to change discrete action in v0)
         _correction, _timing = self.cerebellum.forward(z_t, obs.x)
 
-        # 7) Update recurrent runtime state
+        # 8) Update recurrent runtime state
         self.state.z = z_t.detach()
         # Detach each element of the tuple state (E, I)
         self.state.cortex_state = tuple(s.detach() for s in new_cortex_state)
@@ -146,10 +153,6 @@ class DigitalBrain(nn.Module):
             HT5=mods.HT5.detach(),
         )
         self._prev_pred = pred_t.detach()
-
-        # Hippocampus encode on novelty/reward
-        if torch.any(novelty > 0.6) or torch.any(reward_b != 0):
-            self.hippocampus.encode(z_t)
 
         log = StepLog(
             pred_error=pred_err_vec.mean().item(),
@@ -168,3 +171,7 @@ class DigitalBrain(nn.Module):
         )
 
         return action, log_prob, value, self.state, log, entropy
+
+    def act(self, obs: Obs, reward: torch.Tensor, done: torch.Tensor):
+        """Convenience method for evaluation (learn=False)."""
+        return self.step(obs, reward, done, learn=False)

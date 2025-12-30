@@ -149,7 +149,8 @@ def eval_simple(brain, env, device, episodes, max_steps):
         steps = 0
         while not done and steps < max_steps:
             obs = Obs(x=torch.from_numpy(obs_np).unsqueeze(0).to(device))
-            action, _, _, _, _, _ = brain.step(obs, prev_reward, prev_done)
+            # Use act() for evaluation to avoid state mutation/learning
+            action, _, _, _, _, _ = brain.act(obs, prev_reward, prev_done)
             obs_np, reward, done, _ = env.step(int(action.item()))
             ep_ret += reward
             prev_reward = torch.tensor([[reward]], dtype=torch.float32, device=device)

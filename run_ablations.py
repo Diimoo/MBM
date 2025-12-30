@@ -11,10 +11,29 @@ class AblationBrain(DigitalBrain):
         super().__init__(config)
         self.mode = mode
 
-    def step(self, obs, reward, done):
+    def step(self, obs, reward, done, learn: bool = False):
         B = obs.x.shape[0]
         if self.state is None:
             self.reset(B, obs.x.device)
+
+        # Handle per-environment resets for finished episodes
+        done_mask = done.view(B, 1)
+        if torch.any(done_mask):
+            with torch.no_grad():
+                self.state.z = self.state.z * (1 - done_mask.float())
+                e_act, i_act, trace_ee = self.state.cortex_state
+                e_act = e_act * (1 - done_mask.float())
+                i_act = i_act * (1 - done_mask.float())
+                self.state.cortex_state = (e_act, i_act, trace_ee)
+                self.state.bg_state['prev_value'] = self.state.bg_state['prev_value'] * (1 - done_mask.float())
+                self._prev_selection = self._prev_selection * (1 - done_mask.float())
+                self._prev_pred = self._prev_pred * (1 - done_mask.float())
+                mask = (1 - done_mask.squeeze().float())
+                if mask.dim() == 0: mask = mask.unsqueeze(0)
+                self._prev_mods.DA = self._prev_mods.DA * mask
+                self._prev_mods.NE = self._prev_mods.NE * mask
+                self._prev_mods.ACh = self._prev_mods.ACh * mask + (1 - mask) * 0.5
+                self._prev_mods.HT5 = self._prev_mods.HT5 * mask + (1 - mask) * 0.5
 
         reward_b = reward.squeeze(1) if (reward.dim() == 2 and reward.shape[1] == 1) else reward
         done_b = done.squeeze(1).float() if (done.dim() == 2 and done.shape[1] == 1) else done.float()
@@ -55,8 +74,8 @@ class AblationBrain(DigitalBrain):
         else:
             mods = self.neuromods.compute(z_t, da.squeeze(1), novelty, pred_err_vec)
 
-        # 6) Plasticity (3-Factor Rule)
-        if self.mode != "no_neuromods" and self.mode != "no_plasticity":
+        # 6) Plasticity (3-Factor Rule) - only if learn=True
+        if learn and self.mode != "no_neuromods" and self.mode != "no_plasticity":
             self.cortex.update_weights(mods, new_cortex_state)
 
         # 7) Update recurrent runtime state
@@ -73,7 +92,7 @@ class AblationBrain(DigitalBrain):
         )
         self._prev_pred = pred_t.detach()
 
-        if self.mode != "no_hippo":
+        if learn and self.mode != "no_hippo":
             if torch.any(novelty > 0.6) or torch.any(reward_b != 0):
                 self.hippocampus.encode(z_t)
 

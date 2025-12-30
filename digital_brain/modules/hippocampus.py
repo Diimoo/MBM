@@ -16,21 +16,38 @@ class Hippocampus(nn.Module):
         self.ptr = 0
         self.count = 0
 
-    def encode(self, z: torch.Tensor, ctx=None):
-        """Vectorized encoding into the memory buffer."""
+    def clear(self):
+        """Clears the memory buffer."""
+        self.memory.zero_()
+        self.ptr = 0
+        self.count = 0
+
+    def encode(self, z: torch.Tensor, ctx=None, max_write: int = 128):
+        """Vectorized encoding of a subset of the batch into the memory buffer."""
         B = z.shape[0]
         device = z.device
-        z_d = z.detach()
         
-        # Determine slice indices
-        indices = (torch.arange(self.ptr, self.ptr + B, device=device) % self.capacity).long()
-        self.memory[indices] = z_d
+        # If batch size is larger than capacity or a specified max_write, 
+        # we only store a random subset to prevent overwriting the whole buffer in one step.
+        num_to_write = min(B, max_write, self.capacity)
         
-        self.ptr = (self.ptr + B) % self.capacity
-        self.count = min(self.count + B, self.capacity)
+        if num_to_write < B:
+            indices_subset = torch.randperm(B, device=device)[:num_to_write]
+            z_to_store = z[indices_subset].detach()
+        else:
+            z_to_store = z.detach()
+            num_to_write = B
+
+        # Determine slice indices in ring buffer
+        indices = (torch.arange(self.ptr, self.ptr + num_to_write, device=device) % self.capacity).long()
+        self.memory[indices] = z_to_store
+        
+        self.ptr = (self.ptr + num_to_write) % self.capacity
+        self.count = min(self.count + num_to_write, self.capacity)
         return torch.tensor([self.ptr], device=device)
 
     def _cosine_sim(self, cue: torch.Tensor, mem: torch.Tensor) -> torch.Tensor:
+        # Normalize cue and mem
         cue_n = cue / (cue.norm(dim=1, keepdim=True) + self.eps)  # (B, d_z)
         mem_n = mem / (mem.norm(dim=1, keepdim=True) + self.eps)  # (N, d_z)
         return cue_n @ mem_n.T                                    # (B, N)

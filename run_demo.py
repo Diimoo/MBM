@@ -43,9 +43,8 @@ def run_demo(max_steps: int = 200, seed: int = 0):
         obs_t = torch.from_numpy(obs_np).unsqueeze(0).to(device)
         obs = Obs(x=obs_t)
         
-        # We need to handle the returns from brain.step
-        # It returns: action, log_prob, value, state, log
-        action, _, _, _, log = brain.step(obs, prev_reward, prev_done)
+        # Use act() for demo run (learn=False)
+        action, _, _, _, log, _ = brain.act(obs, prev_reward, prev_done)
         action_idx = int(action.item())
 
         next_obs_np, reward, done, info = env.step(action_idx)
