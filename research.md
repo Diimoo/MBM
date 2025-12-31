@@ -11,72 +11,71 @@ MBM is instantiated in DigitalBrain, which orchestrates Cortex (world model), Th
 ```mermaid
 flowchart LR
   subgraph Sensory
-    X[Observation x]
+    X["Observation x"]
   end
 
   subgraph Thalamus
-    G[Gate = σ(W_sel·selection)]
-    Gain[Gain = 1 + α_ACh·ACh + α_NE·NE]
+    G["Gate: sigmoid(W_sel * selection)"]
+    Gain["Gain: 1 + a_ACh*ACh + a_NE*NE"]
   end
 
   subgraph Cortex
-    E[E (exc)]
-    I[I (inh)]
-    W_in[W_in]
-    W_ee[W_ee (plastic)]
-    W_ie[W_ie]
-    W_ei[W_ei]
-    Pred[Prediction head]
+    E["E (exc)"]
+    I["I (inh)"]
+    W_in["W_in"]
+    W_ee["W_ee (plastic)"]
+    W_ie["W_ie"]
+    W_ei["W_ei"]
+    Pred["Prediction head"]
   end
 
   subgraph Hippocampus
-    Mem[Ring buffer]
-    Novelty[Novelty = (1-max cos)/2]
+    Mem["Ring buffer"]
+    Novelty["Novelty: (1 - max_cos) / 2"]
   end
 
   subgraph BasalGanglia
-    Val[V(z)]
-    Sel[Selection head]
-    Pol[Policy head]
-    DA[DA = r + (1-done)·γ·V' - V]
+    Val["V(z)"]
+    Sel["Selection head"]
+    Pol["Policy head"]
+    DA["DA (TD-RPE): r + (1-done)*gamma*V_next - V"]
   end
 
   subgraph Neuromods
-    DAo[DA]
-    NEo[NE]
-    ACho[ACh]
-    HT5o[5-HT]
+    DAo["DA"]
+    NEo["NE"]
+    ACho["ACh"]
+    HT5o["5-HT"]
   end
 
   subgraph Cerebellum
-    Corr[Correction]
+    Corr["Correction"]
   end
 
-  X -->|gated_x = x * G * Gain| Cortex
-  G <-- Sel
-  Gain <-- ACho
-  Gain <-- NEo
+  %% Routing / core loop
+  X -->|"gated_x = x * Gate * Gain"| Cortex
+  Sel --> G
+  ACho --> Gain
+  NEo --> Gain
 
-  Cortex -->|z_t| BasalGanglia
+  Cortex -->|"z_t"| BasalGanglia
   BasalGanglia --> Sel
   BasalGanglia --> DA
-  BasalGanglia -->|action| Out[Env]
+  BasalGanglia -->|"action"| Out["Env/Output"]
 
-  z_t --> Hippocampus
+  Cortex -->|"z_t"| Hippocampus
   Hippocampus --> Novelty
   Novelty --> NEo
 
-  X -->|sensory| Cerebellum
-  z_t --> Cerebellum
+  X -->|"sensory"| Cerebellum
+  Cortex -->|"z_t"| Cerebellum
 
-  Cortex -->|pred_t| PredOut[Predicted obs]
-  PredOut -.->|MSE surprise| ACho
+  Cortex -->|"pred_t"| PredOut["Predicted obs"]
+  PredOut -->|"MSE (surprise)"| ACho
 
-  DA -->|gate plasticity| W_ee
-  Novelty --> NEo
-  PredOut -.-> ACho
-  Neuromods -.-> Thalamus
-
+  %% Learning gates
+  DA -->|"gate plasticity"| W_ee
+  Neuromods --> Thalamus
 
 ```
 ## 3. Module-Level Description
