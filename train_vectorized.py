@@ -16,12 +16,12 @@ def train_vectorized():
         'total_steps': 100000000,
         'num_envs': 4096,
         'num_steps': 128,
-        'ppo_epochs': 3,
-        'mini_batch_size': 32768,  
+        'ppo_epochs': 4,
+        'mini_batch_size': 32768,
         'eps_clip': 0.2,
         'gamma': 0.99,
         'gae_lambda': 0.95,
-        'entropy_coef': 0.02,  
+        'entropy_coef': 0.005,  # Reduced from 0.02 to stop pushing toward uniform  
         'value_coef': 0.5,
         'target_kl': 0.015,  
         'seed': 42,
@@ -167,6 +167,7 @@ def train_vectorized():
 
         # Diagnostics accumulators
         total_kl, total_clipfrac, total_entropy, total_batches = 0.0, 0.0, 0.0, 0
+        total_logit_scale, total_prob_max = 0.0, 0.0
         early_stop_epoch = config['ppo_epochs']
         
         for epoch in range(config['ppo_epochs']):
@@ -207,10 +208,14 @@ def train_vectorized():
                     log_ratio = new_logp - logp_f[idx]
                     approx_kl = (-log_ratio).mean().item()  # KL(old||new)
                     clipfrac = ((torch.exp(log_ratio) - 1.0).abs() > config['eps_clip']).float().mean().item()
+                    logit_scale = logits.abs().mean().item()
+                    prob_max = probs.max(dim=1).values.mean().item()
                 
                 total_kl += approx_kl
                 total_clipfrac += clipfrac
                 total_entropy += entropy.mean().item()
+                total_logit_scale += logit_scale
+                total_prob_max += prob_max
                 total_batches += 1
                 epoch_kl += approx_kl
                 epoch_batches += 1
@@ -245,6 +250,13 @@ def train_vectorized():
         avg_kl = total_kl / max(total_batches, 1)
         avg_clipfrac = total_clipfrac / max(total_batches, 1)
         avg_entropy = total_entropy / max(total_batches, 1)
+        avg_logit = total_logit_scale / max(total_batches, 1)
+        avg_pmax = total_prob_max / max(total_batches, 1)
+        
+        # Explained variance: how well value predicts returns
+        with torch.no_grad():
+            ev = 1 - (ret_f - val_f).var() / (ret_f.var() + 1e-8)
+            ev = ev.item()
 
         if device.type == 'cuda':
             torch.cuda.synchronize()
@@ -258,7 +270,7 @@ def train_vectorized():
             brain.state, brain._prev_selection, brain._prev_mods, brain._prev_pred = train_state
             
             # Log with PPO diagnostics
-            print(f"Upd {update+1:4d} | SR {sr:.3f} | KL {avg_kl:.4f} | Clip {avg_clipfrac:.2f} | Ent {avg_entropy:.2f} | Ep {early_stop_epoch} | FPS {fps:.0f}")
+            print(f"Upd {update+1:4d} | SR {sr:.3f} | KL {avg_kl:.4f} | Clip {avg_clipfrac:.2f} | Ent {avg_entropy:.2f} | Logit {avg_logit:.2f} | Pmax {avg_pmax:.2f} | EV {ev:.2f} | Ep {early_stop_epoch} | FPS {fps:.0f}")
             if sr > best_sr:
                 best_sr = sr
                 torch.save(brain.state_dict(), "brain_vectorized_best.pth")
