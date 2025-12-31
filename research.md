@@ -53,9 +53,13 @@ flowchart LR
 **Formeln:**
 
 ![Gate](assets/formulas/gate.svg)
+
 ![Gain](assets/formulas/gain.svg)
+
 ![Gated Input](assets/formulas/gated_input.svg)
+
 ![TD-RPE](assets/formulas/tdrpe.svg)
+
 ![Novelty](assets/formulas/novelty.svg)
 
 
