@@ -184,7 +184,10 @@ def train_vectorized():
                 gated_x = brain.thalamus.gate(obs_f[idx], brain._prev_selection, brain._prev_mods)
                 z_t, _, _ = brain.cortex.forward(gated_x, brain.state.cortex_state)
                 
-                logits = brain.bg.policy_head(z_t)
+                # Compute selection and concatenate for policy (gives selection_head RL gradient)
+                selection = brain.bg.selection_head(z_t)
+                policy_input = torch.cat([z_t, selection], dim=-1)
+                logits = brain.bg.policy_head(policy_input)
                 logits = torch.clamp(logits, min=-20, max=20)
                 probs = torch.softmax(logits, dim=-1)
                 dist = torch.distributions.Categorical(probs=probs, validate_args=False)
