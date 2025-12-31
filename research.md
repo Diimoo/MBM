@@ -9,75 +9,54 @@ MBM is instantiated in DigitalBrain, which orchestrates Cortex (world model), Th
 ### 2.1 High-Level Architecture (Mermaid)
 
 ```mermaid
+
+%%{init: {'flowchart': {'curve': 'basis', 'nodeSpacing': 90, 'rankSpacing': 100}}}%%
 flowchart LR
-  subgraph Sensory
-    X["Observation x"]
-  end
+  classDef module fill:#111827,stroke:#4b5563,stroke-width:1px,color:#e5e7eb;
+  classDef io fill:#0b1220,stroke:#9ca3af,stroke-width:1px,color:#e5e7eb;
+  classDef signal fill:#0b1220,stroke:#6b7280,stroke-dasharray:4 3,color:#e5e7eb;
 
-  subgraph Thalamus
-    G["Gate: sigmoid(W_sel * selection)"]
-    Gain["Gain: 1 + a_ACh*ACh + a_NE*NE"]
-  end
+  X["Sensory<br/>observation x"]:::io
+  T["Thalamus<br/>gate + gain"]:::module
+  C["Cortex<br/>world model<br/>Z(t) + pred"]:::module
+  BG["Basal Ganglia<br/>selection/policy<br/>TD-RPE (DA)"]:::module
+  H["Hippocampus (DG/CA3)<br/>encode/retrieve/replay<br/>novelty"]:::module
+  CB["Cerebellum<br/>correction + timing"]:::module
+  NM["Neuromods<br/>DA / NE / ACh / 5HT"]:::module
+  Y["Env / Output<br/>action"]:::io
 
-  subgraph Cortex
-    E["E (exc)"]
-    I["I (inh)"]
-    W_in["W_in"]
-    W_ee["W_ee (plastic)"]
-    W_ie["W_ie"]
-    W_ei["W_ei"]
-    Pred["Prediction head"]
-  end
+  %% Main data loop (solid)
+  X -->|"x"| T
+  T -->|"gated x"| C
+  C -->|"Z(t)"| BG
+  BG -->|"selection/commit"| T
 
-  subgraph Hippocampus
-    Mem["Ring buffer"]
-    Novelty["Novelty: (1 - max_cos) / 2"]
-  end
+  C <-->|"encode / retrieve"| H
 
-  subgraph BasalGanglia
-    Val["V(z)"]
-    Sel["Selection head"]
-    Pol["Policy head"]
-    DA["DA (TD-RPE): r + (1-done)*gamma*V_next - V"]
-  end
+  X -->|"sensory"| CB
+  C -->|"plan/Z"| CB
+  BG -->|"action"| Y
+  CB -->|"correction"| Y
 
-  subgraph Neuromods
-    DAo["DA"]
-    NEo["NE"]
-    ACho["ACh"]
-    HT5o["5-HT"]
-  end
+  %% Learning / control signals (dashed)
+  H -.->|"novelty"| NM:::signal
+  C -.->|"pred error"| NM:::signal
+  BG -.->|"DA (RPE)"| NM:::signal
 
-  subgraph Cerebellum
-    Corr["Correction"]
-  end
+  NM -.->|"gain (ACh, NE)"| T:::signal
+  NM -.->|"plasticity gate"| C:::signal
+  NM -.->|"explore/exploit"| BG:::signal
 
-  %% Routing / core loop
-  X -->|"gated_x = x * Gate * Gain"| Cortex
-  Sel --> G
-  ACho --> Gain
-  NEo --> Gain
-
-  Cortex -->|"z_t"| BasalGanglia
-  BasalGanglia --> Sel
-  BasalGanglia --> DA
-  BasalGanglia -->|"action"| Out["Env/Output"]
-
-  Cortex -->|"z_t"| Hippocampus
-  Hippocampus --> Novelty
-  Novelty --> NEo
-
-  X -->|"sensory"| Cerebellum
-  Cortex -->|"z_t"| Cerebellum
-
-  Cortex -->|"pred_t"| PredOut["Predicted obs"]
-  PredOut -->|"MSE (surprise)"| ACho
-
-  %% Learning gates
-  DA -->|"gate plasticity"| W_ee
-  Neuromods --> Thalamus
 
 ```
+
+**Formeln:**
+- Gate: `gate = sigmoid(W_sel * selection + W_fb * feedback - b)`
+- Gain: `gain = 1 + a_ACh*ACh + a_NE*NE`
+- TD-RPE: `DA = r + (1-done)*gamma*V_next - V`
+- Novelty: `novelty = (1 - max_cos) / 2`
+
+
 ## 3. Module-Level Description
 ### 3.1 Thalamus: Sparse, Goal-Directed Sensory Gating
 Computation: gate = sigmoid(gate_fc(selection)); gain = 1 + α_ACh·ACh + α_NE·NE; output gated = inputs * gate * gain.
