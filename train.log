@@ -1,0 +1,37 @@
+Using device: cuda
+Parallel Envs: 4096
+Loaded existing vectorized best
+Starting Vectorized PPO Training (4096 envs, 128 steps/upd)...
+Update 10/190 | SR: 0.30 | Loss: 0.2282 | FPS: 22047
+New Best SR: 0.30
+Traceback (most recent call last):
+  File "/home/ahmed/Downloads/Kandel/train_vectorized.py", line 254, in <module>
+    train_vectorized()
+    ~~~~~~~~~~~~~~~~^^
+  File "/home/ahmed/Downloads/Kandel/train_vectorized.py", line 104, in train_vectorized
+    action, log_prob, value, _, _, _ = brain.step(Obs(x=obs_t), prev_reward, prev_done, learn=True)
+                                       ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ahmed/Downloads/Kandel/digital_brain/brain.py", line 123, in step
+    selection, da, action, log_prob, value, entropy = self.bg.step(
+                                                      ~~~~~~~~~~~~^
+        z_t, reward_b.unsqueeze(1), obs.ctx, done_b.unsqueeze(1), self.state.bg_state['prev_value']
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/ahmed/Downloads/Kandel/digital_brain/modules/basal_ganglia.py", line 26, in step
+    dist = torch.distributions.Categorical(probs)
+  File "/home/ahmed/.local/lib/python3.13/site-packages/torch/distributions/categorical.py", line 81, in __init__
+    super().__init__(batch_shape, validate_args=validate_args)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ahmed/.local/lib/python3.13/site-packages/torch/distributions/distribution.py", line 77, in __init__
+    raise ValueError(
+    ...<5 lines>...
+    )
+ValueError: Expected parameter probs (Tensor of shape (4096, 4)) of distribution Categorical(probs: torch.Size([4096, 4])) to satisfy the constraint Simplex(), but found invalid values:
+tensor([[0.0115, 0.6450, 0.0249, 0.3185],
+        [   nan,    nan,    nan,    nan],
+        [   nan,    nan,    nan,    nan],
+        ...,
+        [   nan,    nan,    nan,    nan],
+        [   nan,    nan,    nan,    nan],
+        [   nan,    nan,    nan,    nan]], device='cuda:0')

@@ -4,6 +4,7 @@ import torch.optim as optim
 import numpy as np
 import os
 import time
+import sys
 from digital_brain.brain import DigitalBrain
 from digital_brain.datatypes import Obs
 from digital_brain.envs.vector_env import VectorPOMDP
@@ -101,7 +102,7 @@ def train_vectorized():
                 obs_t = torch.from_numpy(obs_np).to(device)
                 obs_buf[t] = obs_t
                 
-                action, log_prob, value, _, _, _ = brain.step(Obs(x=obs_t), prev_reward, prev_done, learn=True)
+                action, log_prob, value, _, _, _ = brain.step(Obs(x=obs_t), prev_reward, prev_done, learn=False)
                 
                 obs_np, reward, done, _ = envs.step(action.cpu().numpy())
                 
@@ -184,8 +185,9 @@ def train_vectorized():
                 z_t, _, _ = brain.cortex.forward(gated_x, brain.state.cortex_state)
                 
                 logits = brain.bg.policy_head(z_t)
+                logits = torch.clamp(logits, min=-20, max=20)
                 probs = torch.softmax(logits, dim=-1)
-                dist = torch.distributions.Categorical(probs)
+                dist = torch.distributions.Categorical(probs=probs, validate_args=False)
                 
                 new_logp = dist.log_prob(act_f[idx])
                 entropy = dist.entropy()
