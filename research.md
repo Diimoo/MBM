@@ -51,10 +51,12 @@ flowchart LR
 ```
 
 **Formeln:**
-- Gate: `gate = sigmoid(W_sel * selection + W_fb * feedback - b)`
-- Gain: `gain = 1 + a_ACh*ACh + a_NE*NE`
-- TD-RPE: `DA = r + (1-done)*gamma*V_next - V`
-- Novelty: `novelty = (1 - max_cos) / 2`
+
+![Gate](assets/formulas/gate.svg)
+![Gain](assets/formulas/gain.svg)
+![Gated Input](assets/formulas/gated_input.svg)
+![TD-RPE](assets/formulas/tdrpe.svg)
+![Novelty](assets/formulas/novelty.svg)
 
 
 ## 3. Module-Level Description

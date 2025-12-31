@@ -22,10 +22,7 @@ class BasalGanglia(nn.Module):
         selection = self.selection_head(z_t)
         
         logits = self.policy_head(z_t)
-        # Numerical stability: clamp logits
-        logits = torch.clamp(logits, min=-20, max=20)
-        probs = torch.softmax(logits, dim=-1)
-        dist = torch.distributions.Categorical(probs=probs, validate_args=False)
+        dist = torch.distributions.Categorical(logits=logits)  # Direct logits, no clamp
         action = dist.sample()
         log_prob = dist.log_prob(action)
         entropy = dist.entropy()

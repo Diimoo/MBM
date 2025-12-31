@@ -21,8 +21,9 @@ def train_vectorized():
         'eps_clip': 0.2,
         'gamma': 0.99,
         'gae_lambda': 0.95,
-        'entropy_coef': 0.005,  # Reduced from 0.02 to stop pushing toward uniform  
+        'entropy_coef': 0.005,  # Reduced from 0.02 to stop pushing toward uniform
         'value_coef': 0.5,
+        'vf_clip': 0.2,  # Value clipping for stable critic
         'target_kl': 0.015,  
         'seed': 42,
         'eval_every': 20,
@@ -195,9 +196,7 @@ def train_vectorized():
                 z_t, _, _ = brain.cortex.forward(gated_x, brain.state.cortex_state)
                 
                 logits = brain.bg.policy_head(z_t)
-                logits = torch.clamp(logits, min=-20, max=20)
-                probs = torch.softmax(logits, dim=-1)
-                dist = torch.distributions.Categorical(probs=probs, validate_args=False)
+                dist = torch.distributions.Categorical(logits=logits)  # Direct logits, no clamp
                 
                 new_logp = dist.log_prob(act_f[idx])
                 entropy = dist.entropy()
@@ -209,6 +208,7 @@ def train_vectorized():
                     approx_kl = (-log_ratio).mean().item()  # KL(old||new)
                     clipfrac = ((torch.exp(log_ratio) - 1.0).abs() > config['eps_clip']).float().mean().item()
                     logit_scale = logits.abs().mean().item()
+                    probs = dist.probs
                     prob_max = probs.max(dim=1).values.mean().item()
                 
                 total_kl += approx_kl
@@ -229,7 +229,13 @@ def train_vectorized():
                 surr2 = torch.clamp(ratio, 1.0 - config['eps_clip'], 1.0 + config['eps_clip']) * mb_adv
                 policy_loss = -torch.min(surr1, surr2).mean()
                 
-                val_loss = nn.HuberLoss()(new_val, ret_f[idx])
+                # Value clipping for stable critic
+                old_val = val_f[idx]
+                v_clipped = old_val + (new_val - old_val).clamp(-config['vf_clip'], config['vf_clip'])
+                v_loss1 = (new_val - ret_f[idx])**2
+                v_loss2 = (v_clipped - ret_f[idx])**2
+                val_loss = 0.5 * torch.max(v_loss1, v_loss2).mean()
+                
                 loss = policy_loss + config['value_coef'] * val_loss - config['entropy_coef'] * entropy.mean()
                 
                 optimizer.zero_grad()
