@@ -30,38 +30,22 @@ Neuronen integrieren synaptische Eingänge über passive Membraneigenschaften un
 
 ### 1.2 Digitales Pendant
 
-**Option A: Leaky Integrate-and-Fire (LIF)**
+**Rate-based Population Model (MVP-Standard):**
+Im aktuellen System (v1.0) verwenden wir ein raten-basiertes Modell für Populationen, anstelle einzelner Spiking-Neuronen, um die Effizienz zu steigern.
 
-```
-Zustand: V(t) ∈ ℝ (Membranpotential)
-Parameter: V_rest, V_th, V_reset, τ_m, R_m, τ_ref
+```python
+# Euler-Integration der Aktivität
+de = (-e_act + F.relu(ext_drive + rec_drive - inh_drive)) / tau_e
+di = (-i_act + F.relu(e_act @ W_ei)) / tau_i
 
-Dynamik:
-τ_m × dV/dt = -(V - V_rest) + R_m × I_syn(t)
-
-Spike-Regel:
-wenn V ≥ V_th:
-    spike ausgeben
-    V := V_reset
-    Refraktärzeit τ_ref einhalten
+e_act_new = e_act + dt * de
+i_act_new = i_act + dt * di
 ```
 
-**Option B: Izhikevich-Modell** (für reichere Dynamik)
+**Optionen für zukünftige Versionen:**
 
-> **NICHT IM KANDEL**: Das Izhikevich-Modell ist eine vereinfachte Alternative zu Hodgkin-Huxley aus der Computational Neuroscience (Izhikevich 2003).
-
-```
-v' = 0.04v² + 5v + 140 - u + I
-u' = a(bv - u)
-
-wenn v ≥ 30mV:
-    v := c
-    u := u + d
-
-Parameter (a,b,c,d) bestimmen Neuronentyp
-```
-
-> Biologische Basis: Hodgkin-Huxley-Dynamik (Kandel5e, Kap. 7, S. 153–156)
+- **Leaky Integrate-and-Fire (LIF)**: Siehe Kandel Kap. 6.
+- **Izhikevich-Modell**: Für reichere Dynamik.
 
 ### 1.3 Schnittstellen
 
@@ -85,32 +69,20 @@ Parameter (a,b,c,d) bestimmen Neuronentyp
 Synapsen übertragen Signale durch Neurotransmitter-Freisetzung, die postsynaptische Ströme erzeugt.
 
 > "The synaptic current depends on the conductance of the postsynaptic receptors and the driving force on the permeant ions." (Kandel5e, Kap. 10, S. 210–220)
-
 > "Short-term synaptic plasticity can either facilitate or depress transmission depending on the pattern of presynaptic activity." (Kandel5e, Kap. 12, S. 285–290)
 
 ### 2.2 Digitales Pendant
 
-**Basis-Synapse:**
+**Basis-Gewichtsmodell:**
+Das System verwendet skalare Gewichte $w_{ij}$ für die Kopplung von Populationen.
 
+**Short-Term Plasticity (STP):**
+> **NICHT IMPLEMENTIERT (v1.0)**: Das Tsodyks-Markram-Modell ist für zukünftige Versionen zur Modellierung von Facilitation/Depression vorgesehen.
+
+```python
+# Aktuelle Implementierung
+I_syn = activity @ weights
 ```
-I_syn(t) = Σ_j w_ij × g_j(t) × (V - E_rev)
-
-g_j(t) = Σ_spikes exp(-(t - t_spike) / τ_syn)
-```
-
-**Mit Short-Term Plasticity (STP):**
-
-> **NICHT IM KANDEL**: Das Tsodyks-Markram-Modell formalisiert STP. Kandel beschreibt Facilitation/Depression konzeptuell (Kap. 12, S. 285–290), aber nicht diese Gleichungen.
-
-```
-# Tsodyks-Markram-Modell
-dx/dt = (1-x)/τ_D - u×x×δ(t-t_spike)    # Depression
-du/dt = (U-u)/τ_F + U×(1-u)×δ(t-t_spike)  # Facilitation
-
-w_eff = w × u × x
-```
-
-> Biologische Basis: Facilitation und Depression (Kandel5e, Kap. 12, S. 285–290)
 
 ### 2.3 Schnittstellen
 
@@ -328,35 +300,17 @@ wobei:
 
 ### 5.3 Digitales Pendant
 
-```
-Struktur:
-- Relay-Neuronen (R): je ein Kern pro Modalität
-- Reticular-Neuronen (TRN): inhibitorische Kontrolle
-
-Dynamik:
-R_out = gain × R_in × gate
-
-gate = σ(TRN_input + cortical_feedback)
-gain = f(modulators)  # ACh, NE erhöhen Gain
-
-Definition:
-gain ∈ [0.1, 2.0] (multiplikativer Faktor)
-gain = 1.0 + α_ACh × ACh + α_NE × NE
-mit α_ACh, α_NE ≈ 0.5
-
-Modi:
-- Tonic: gain hoch, gate offen → Relay
-- Burst: gain niedrig, gate variabel → Gating
-
-Zustandsübergang (formal):
-mode := "tonic" wenn ACh > θ_ACh ELSE "burst"
-gate[k] := sigmoid(selection[k] + feedback[k] - inhibition[k])
-
-Hinweis:
-gate lernt **nicht** (keine Gewichtsänderung) – es wird durch BG-Selection und kortikales Feedback bestimmt.
+```python
+# Implementierung (v1.0)
+gate = sigmoid(gate_fc(selection))
+gain = 1.0 + alpha_ach * mods.ACh + alpha_ne * mods.NE
+gated_output = inputs * gate * gain
 ```
 
-> **NICHT IM KANDEL**: Diese expliziten Gleichungen (R_out, gate, gain) sind ein vereinfachtes Computational-Model; Kandel beschreibt die thalamo-kortikale Verschaltung und Modulation, aber nicht diese Formeln.
+**Geplante Erweiterungen:**
+
+- Dynamische Inhibition durch TRN (Thalamic Reticular Nucleus).
+- Explizite Tonic/Burst-Modus-Logik.
 
 ### 5.4 Schnittstellen
 
@@ -399,45 +353,24 @@ gate lernt **nicht** (keine Gewichtsänderung) – es wird durch BG-Selection un
 
 ### 6.3 Digitales Pendant
 
-**Struktur:**
+**Implementierung (Actor-Critic):**
+Das System verwendet eine Actor-Critic-Architektur, wobei das Striatum als "Selection Head" und "Policy Head" fungiert.
 
-```
-Striatum:
-- D1-MSNs (direct pathway, "Go")
-- D2-MSNs (indirect pathway, "NoGo")
+```python
+# BasalGanglia.step
+value = value_head(z_t)
+selection = selection_head(z_t)
+logits = policy_head(z_t)
 
-GPi/SNr (Output):
-- Tonisch aktiv, hemmt Thalamus
-- Inhibition durch D1-MSNs → Disinhibition
-
-STN:
-- Erregt GPi → globale Inhibition ("Hold")
+# TD-RPE (Dopamin)
+da = reward + (1 - done) * gamma * value - prev_value
 ```
 
-**Reward Prediction Error:**
+**Biologische Zuordnung:**
 
-```
-# Temporal Difference (TD) RPE
-δ_t = r_t + γ × V(s_{t+1}) - V(s_t)
-
-# Dopamin-Signal
-DA(t) = baseline + β × δ_t
-
-# Effekt auf Striatum
-D1_activity ∝ DA(t)  # verstärkt Go
-D2_activity ∝ 1/DA(t)  # verstärkt NoGo bei niedrigem DA
-```
-
-**Policy Update:**
-
-```
-# Actor-Critic
-V(s) := V(s) + α_critic × δ_t  # Critic lernt Value
-
-# Policy über Striatum-Gewichte
-w_Go := w_Go + α_actor × δ_t × e_Go
-w_NoGo := w_NoGo - α_actor × δ_t × e_NoGo
-```
+- **Value Head**: Ventrales Striatum / Critic.
+- **Selection Head**: Gating der Thalamo-kortikalen Schleifen.
+- **Policy Head**: Motorisches Striatum / Action selection.
 
 ### 6.4 Schnittstellen
 
@@ -486,58 +419,23 @@ BG.step(cortex_state, reward, context) → (action_selection, DA_signal)
 
 ### 7.3 Digitales Pendant
 
-**Struktur:**
+**Implementierung (Vectorized Memory Buffer):**
+In v1.0 ist der Hippocampus als effizienter Ringpuffer mit assoziativem Abruf implementiert.
 
-```
-Entorhinal Cortex (EC):
-- Input/Output Interface zum Kortex
+```python
+# Retrieval via Cosine Similarity
+sim = (cue / |cue|) @ (memory / |memory|).T
+idx = topk(sim)
+recalled = memory[idx]
 
-Dentate Gyrus (DG):
-- Sparse Coding, Pattern Separation
-- Expansion: EC (klein) → DG (groß, sparse)
-
-CA3:
-- Rekurrente Verbindungen
-- Pattern Completion, Autoassoziatives Netzwerk
-
-CA1:
-- Output zum Kortex
-- Vergleicht EC-Input mit CA3-Recall
+# Novelty
+novelty = (1.0 - max_sim) * 0.5
 ```
 
-**Encoding:**
+**Geplante biologische Verfeinerung:**
 
-```
-# Pattern Separation in DG
-DG = sparse_encode(EC_input)  # k-winner-take-all
-
-Parameter:
-k ≈ 2–5% der DG-Neuronen (Sparsity)
-Expansion-Ratio: DG_size ≈ 5–10 × EC_size
-
-# Storage in CA3
-CA3_pattern = DG
-CA3_weights += outer(CA3_pattern, CA3_pattern)  # Hopfield-like
-```
-
-**Retrieval:**
-
-```
-# Partial cue → Pattern Completion
-CA3_recalled = sign(CA3_weights @ partial_cue)
-
-# Output via CA1
-EC_output = CA1_decode(CA3_recalled)
-```
-
-**Replay:**
-
-```
-# Offline (Sleep/Rest)
-for episode in recent_episodes:
-    replay_sequence = hippocampus.retrieve(episode.cue)
-    cortex.consolidate(replay_sequence)
-```
+- Getrennte DG (Pattern Separation) und CA3 (Pattern Completion) Layer.
+- Sparse Coding in DG.
 
 ### 7.4 Complementary Learning Systems (CLS)
 
@@ -585,37 +483,20 @@ for episode in recent_episodes:
 
 ### 8.3 Digitales Pendant
 
-**Struktur:**
+**Implementierung (v1.0):**
+In der aktuellen Version fungiert das Kleinhirn als MLP-basiertes Korrektursystem, das den Plan (Kortex-Zustand) und sensorische Daten integriert.
 
-```
-Mossy Fibers (MF):
-- Kontextuelle Eingänge (Efferenzkopie, sensorisch)
-- Expandiert durch Granule Cells (GC)
-
-Parallel Fibers (PF):
-- GC → Purkinje Cell (PC) Synapsen
-- Lernbare Gewichte
-
-Climbing Fibers (CF):
-- Error-Signal von Inferior Olive
-- 1 CF pro PC
-
-Purkinje Cells (PC):
-- Integriert PF-Inputs
-- Inhibiert Deep Cerebellar Nuclei (DCN)
+```python
+# Cerebellum.forward
+x = torch.cat([plan, sensory], dim=-1)
+correction = self.fc(x)
+timing_offset = 0  # Platzhalter
 ```
 
-**Lernregel (LTD):**
+**Geplante biologische Verfeinerung:**
 
-```
-# Cerebellar LTD
-Δw_PF = -η × PF_activity × CF_activity
-
-# CF feuert bei Fehler
-CF = error_signal  # z.B. |predicted - actual|
-
-# Effekt: Gewichte reduziert, die bei Fehler aktiv waren
-```
+- Purkinje-Zell-Modell mit Climbing Fiber Error-Gating (LTD).
+- Granule Cell Expansion für raum-zeitliche Muster.
 
 ### 8.4 Schnittstellen
 
@@ -652,42 +533,21 @@ CF = error_signal  # z.B. |predicted - actual|
 
 ### 9.2 Digitales Pendant
 
-```
-Modulator-System:
-- DA: Dopamin → Lernsignal (RPE)
-- NE: Noradrenalin → Arousal/Reset
-- ACh: Acetylcholin → Attention/Plasticity Gate
-- 5HT: Serotonin → Temporal Horizon
-
-Effekte:
-DA → BG Plastizität, Kortex Gain
-NE → globaler Reset, Exploration
-ACh → sensorischer Gain, LTP-Threshold
-5HT → Discount-Faktor γ, Impulskontrolle
-```
-
-**Implementierung:**
+**Implementierung (v1.0):**
+Das System berechnet vier globale Signale basierend auf der Systemdynamik.
 
 ```python
-class Neuromodulators:
-    def compute_DA(self, reward, value_pred, value_next):
-        return reward + self.gamma * value_next - value_pred  # TD-RPE
-    
-    def compute_NE(self, surprise):
-        return sigmoid(surprise - threshold_NE)
-    
-    def compute_ACh(self, attention_signal):
-        return attention_signal
-    
-    def compute_5HT(self, baseline=0.5):
-        return baseline  # moduliert durch Kontext
-
-    def apply_effects(self, modules):
-        modules.BG.learning_rate *= (1 + self.DA)
-        modules.cortex.gain *= (1 + self.ACh)
-        modules.all.reset_probability *= self.NE
-        modules.BG.gamma = 0.9 + 0.09 * self.5HT
+# Neuromodulators.compute
+da = da_rpe           # Aus Basalganglien (TD-Error)
+ne = novelty          # Aus Hippocampus (Kosinus-Ähnlichkeit)
+ach = pred_error / (pred_error + 1.0) # Überraschung/Predictive Error
+ht5 = 0.5             # Konstante (Platzhalter)
 ```
+
+**Effekte:**
+
+- **DA**: Moduliert die 3-Faktor-Plastizität im Kortex und Basalganglien.
+- **NE/ACh**: Steuern Gain und Gating im Thalamus.
 
 ### 9.3 Schnittstellen
 

@@ -12,20 +12,22 @@ from digital_brain.envs.vector_env import VectorPOMDP
 def train_vectorized():
     config = {
         'd_obs': 9, 'd_z': 512, 'd_sel': 64, 'd_act': 4, 
-        'lr': 3e-4, # Lower LR for PPO stability
+        'lr': 2.5e-4,
         'total_steps': 100000000,
-        'num_envs': 4096, # Reduced for PPO buffer memory
-        'num_steps': 128, # More steps for better GAE
-        'ppo_epochs': 4,
-        'mini_batch_size': 4096,
+        'num_envs': 4096,
+        'num_steps': 128,
+        'ppo_epochs': 3,
+        'mini_batch_size': 32768,  
         'eps_clip': 0.2,
         'gamma': 0.99,
         'gae_lambda': 0.95,
-        'entropy_coef': 0.01,
+        'entropy_coef': 0.02,  
         'value_coef': 0.5,
+        'target_kl': 0.015,  
         'seed': 42,
-        'eval_every': 10, # updates
-        'eval_episodes': 20,
+        'eval_every': 20,
+        'eval_episodes': 200,  
+        'num_eval_envs': 64,  
         'selection_penalty': 0.001
     }
 
@@ -36,7 +38,7 @@ def train_vectorized():
     print(f"Parallel Envs: {config['num_envs']}")
 
     envs = VectorPOMDP(num_envs=config['num_envs'], size=5, seed=config['seed'])
-    eval_env = VectorPOMDP(num_envs=1, size=5, seed=config['seed'] + 1000)
+    eval_env = VectorPOMDP(num_envs=config['num_eval_envs'], size=5, seed=config['seed'] + 1000)
 
     brain = DigitalBrain(config).to(device)
     
@@ -62,6 +64,8 @@ def train_vectorized():
     print(f"Starting Vectorized PPO Training ({config['num_envs']} envs, {config['num_steps']} steps/upd)...")
 
     for update in range(num_updates):
+        if device.type == 'cuda':
+            torch.cuda.synchronize()
         start_time = time.time()
         
         # Buffer storage
@@ -152,27 +156,32 @@ def train_vectorized():
         ht_f = mod_5ht.reshape(-1)
         pred_f = pred_buf.reshape(-1, config['d_obs'])
 
-        # 3) PPO Update Epochs
-        # Save collector state to restore after updates
+        # 3) PPO Update Epochs with KL Early-Stop and Diagnostics
         collector_state = (
             brain.state, 
             brain._prev_selection, 
             brain._prev_mods, 
             brain._prev_pred
         )
+        from digital_brain.datatypes import BrainState, ModSignals
 
-        for _ in range(config['ppo_epochs']):
+        # Diagnostics accumulators
+        total_kl, total_clipfrac, total_entropy, total_batches = 0.0, 0.0, 0.0, 0
+        early_stop_epoch = config['ppo_epochs']
+        
+        for epoch in range(config['ppo_epochs']):
+            epoch_kl = 0.0
+            epoch_batches = 0
             indices = torch.randperm(obs_f.shape[0], device=device)
+            
             for start in range(0, obs_f.shape[0], config['mini_batch_size']):
                 end = start + config['mini_batch_size']
                 idx = indices[start:end]
                 
                 # Reconstruct brain state for this minibatch
-                mb_B = idx.shape[0]
-                from digital_brain.datatypes import BrainState, ModSignals
                 brain.state = BrainState(
                     z=z_f[idx],
-                    cortex_state=(e_f[idx], i_f[idx], collector_state[0].cortex_state[2]), # Shared trace
+                    cortex_state=(e_f[idx], i_f[idx], collector_state[0].cortex_state[2]),
                     bg_state={'prev_value': bgv_f[idx]},
                     hip_state=None, cerebellum_state=None
                 )
@@ -180,14 +189,11 @@ def train_vectorized():
                 brain._prev_mods = ModSignals(DA=da_f[idx], NE=ne_f[idx], ACh=ach_f[idx], HT5=ht_f[idx])
                 brain._prev_pred = pred_f[idx]
                 
-                # Forward pass for minibatch
+                # Forward pass
                 gated_x = brain.thalamus.gate(obs_f[idx], brain._prev_selection, brain._prev_mods)
                 z_t, _, _ = brain.cortex.forward(gated_x, brain.state.cortex_state)
                 
-                # Compute selection and concatenate for policy (gives selection_head RL gradient)
-                selection = brain.bg.selection_head(z_t)
-                policy_input = torch.cat([z_t, selection], dim=-1)
-                logits = brain.bg.policy_head(policy_input)
+                logits = brain.bg.policy_head(z_t)
                 logits = torch.clamp(logits, min=-20, max=20)
                 probs = torch.softmax(logits, dim=-1)
                 dist = torch.distributions.Categorical(probs=probs, validate_args=False)
@@ -196,8 +202,21 @@ def train_vectorized():
                 entropy = dist.entropy()
                 new_val = brain.bg.value_head(z_t).squeeze(-1)
                 
+                # PPO Diagnostics
+                with torch.no_grad():
+                    log_ratio = new_logp - logp_f[idx]
+                    approx_kl = (-log_ratio).mean().item()  # KL(old||new)
+                    clipfrac = ((torch.exp(log_ratio) - 1.0).abs() > config['eps_clip']).float().mean().item()
+                
+                total_kl += approx_kl
+                total_clipfrac += clipfrac
+                total_entropy += entropy.mean().item()
+                total_batches += 1
+                epoch_kl += approx_kl
+                epoch_batches += 1
+                
                 # Ratio and Clipped Objective
-                ratio = torch.exp(new_logp - logp_f[idx])
+                ratio = torch.exp(log_ratio)
                 mb_adv = adv_f[idx]
                 mb_adv = (mb_adv - mb_adv.mean()) / (mb_adv.std() + 1e-8)
                 
@@ -205,55 +224,85 @@ def train_vectorized():
                 surr2 = torch.clamp(ratio, 1.0 - config['eps_clip'], 1.0 + config['eps_clip']) * mb_adv
                 policy_loss = -torch.min(surr1, surr2).mean()
                 
-                # Value Loss (Huber)
                 val_loss = nn.HuberLoss()(new_val, ret_f[idx])
-                
-                # Total Loss
                 loss = policy_loss + config['value_coef'] * val_loss - config['entropy_coef'] * entropy.mean()
                 
                 optimizer.zero_grad()
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(brain.parameters(), 0.5)
                 optimizer.step()
+            
+            # KL Early-Stop check after each epoch
+            epoch_kl_avg = epoch_kl / max(epoch_batches, 1)
+            if epoch_kl_avg > 1.5 * config['target_kl']:
+                early_stop_epoch = epoch + 1
+                break
 
-        # Restore collector state for next rollout
+        # Restore collector state
         brain.state, brain._prev_selection, brain._prev_mods, brain._prev_pred = collector_state
+        
+        # Compute diagnostics averages
+        avg_kl = total_kl / max(total_batches, 1)
+        avg_clipfrac = total_clipfrac / max(total_batches, 1)
+        avg_entropy = total_entropy / max(total_batches, 1)
 
+        if device.type == 'cuda':
+            torch.cuda.synchronize()
         fps = (config['num_envs'] * config['num_steps']) / (time.time() - start_time)
 
         if (update + 1) % config['eval_every'] == 0:
+            # Save training state before eval
+            train_state = (brain.state, brain._prev_selection, brain._prev_mods, brain._prev_pred)
             sr = eval_vectorized(brain, eval_env, device, config['eval_episodes'], 150)
-            print(f"Update {update+1}/{num_updates} | SR: {sr:.2f} | Loss: {loss.item():.4f} | FPS: {fps:.0f}")
+            # Restore training state after eval
+            brain.state, brain._prev_selection, brain._prev_mods, brain._prev_pred = train_state
+            
+            # Log with PPO diagnostics
+            print(f"Upd {update+1:4d} | SR {sr:.3f} | KL {avg_kl:.4f} | Clip {avg_clipfrac:.2f} | Ent {avg_entropy:.2f} | Ep {early_stop_epoch} | FPS {fps:.0f}")
             if sr > best_sr:
                 best_sr = sr
                 torch.save(brain.state_dict(), "brain_vectorized_best.pth")
-                print(f"New Best SR: {best_sr:.2f}")
+                print(f"  -> New Best SR: {best_sr:.3f}")
 
 @torch.no_grad()
 def eval_vectorized(brain, env, device, episodes, max_steps):
+    """Vectorized evaluation: runs num_eval_envs in parallel."""
+    num_envs = env.num_envs
     success = 0
-    # Ensure hippocampus is clear before evaluation if we want truly clean starts
-    # brain.hippocampus.clear() 
-    for _ in range(episodes):
+    completed = 0
+    
+    while completed < episodes:
         obs_np = env.reset()
-        brain.reset(1, device=device)
-        prev_reward = torch.zeros(1, 1, device=device)
-        prev_done = torch.zeros(1, 1, dtype=torch.bool, device=device)
-        done = [False]
-        ep_ret = 0.0
-        steps = 0
-        while not done[0] and steps < max_steps:
+        brain.reset(num_envs, device=device)
+        prev_reward = torch.zeros(num_envs, 1, device=device)
+        prev_done = torch.zeros(num_envs, 1, dtype=torch.bool, device=device)
+        
+        ep_returns = torch.zeros(num_envs, device=device)
+        ep_done = torch.zeros(num_envs, dtype=torch.bool, device=device)
+        
+        for step in range(max_steps):
             obs = Obs(x=torch.from_numpy(obs_np).to(device))
-            # Use act() or learn=False for evaluation
             action, _, _, _, _, _ = brain.act(obs, prev_reward, prev_done)
             obs_np, reward, done, _ = env.step(action.cpu().numpy())
-            ep_ret += reward[0]
-            prev_reward = torch.from_numpy(reward).float().to(device).unsqueeze(1)
-            prev_done = torch.from_numpy(done).to(device).unsqueeze(1)
-            steps += 1
-        if ep_ret > 5.0:
-            success += 1
-    return success / episodes
+            
+            reward_t = torch.from_numpy(reward).to(device)
+            done_t = torch.from_numpy(done).to(device)
+            
+            # Only accumulate for not-yet-done episodes
+            ep_returns += reward_t * (~ep_done).float()
+            ep_done = ep_done | done_t
+            
+            prev_reward = reward_t.float().unsqueeze(1)
+            prev_done = done_t.unsqueeze(1)
+            
+            if ep_done.all():
+                break
+        
+        # Count successes
+        success += (ep_returns > 5.0).sum().item()
+        completed += num_envs
+    
+    return success / completed
 
 if __name__ == "__main__":
     train_vectorized()

@@ -11,22 +11,17 @@ class BasalGanglia(nn.Module):
         super().__init__()
         self.value_head = nn.Linear(d_z, 1)
         self.selection_head = nn.Linear(d_z, d_sel)
-        # Policy takes z_t + selection -> gives selection_head direct RL gradient
-        self.policy_head = nn.Linear(d_z + d_sel, d_act)
+        self.policy_head = nn.Linear(d_z, d_act)
         self.gamma = 0.99
-        self.d_z = d_z
-        self.d_sel = d_sel
 
     def step(self, z_t, reward, ctx, done, prev_value=None):
         """
         BG.step(z_t, reward_t, ctx_t, done_t) -> (selection, DA_signal, action, action_log_prob, value, entropy)
         """
         value = self.value_head(z_t)
-        selection = self.selection_head(z_t) # Removed tanh to allow full range in Thalamus sigmoid
+        selection = self.selection_head(z_t)
         
-        # Concatenate z_t + selection for policy -> selection_head gets RL gradient
-        policy_input = torch.cat([z_t, selection], dim=-1)
-        logits = self.policy_head(policy_input)
+        logits = self.policy_head(z_t)
         # Numerical stability: clamp logits
         logits = torch.clamp(logits, min=-20, max=20)
         probs = torch.softmax(logits, dim=-1)
