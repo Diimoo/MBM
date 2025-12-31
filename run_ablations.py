@@ -113,7 +113,7 @@ def eval_brain(brain, device, seeds, episodes=50, max_steps=150):
             steps = 0
             while (not done) and steps < max_steps:
                 obs = Obs(x=torch.from_numpy(obs_np).unsqueeze(0).to(device))
-                action,_,_,_,_,_ = brain.step(obs, prev_reward, prev_done)
+                action,_,_,_,_,_ = brain.step(obs, prev_reward, prev_done, learn=False)
                 obs_np, r, done, _ = env.step(int(action.item()))
                 ep_ret += float(r)
                 prev_reward = torch.tensor([[r]], dtype=torch.float32, device=device)
@@ -124,17 +124,17 @@ def eval_brain(brain, device, seeds, episodes=50, max_steps=150):
     return np.mean(succ_rates), np.std(succ_rates)
 
 def main():
-    config = {'d_obs': 9, 'd_z': 32, 'd_sel': 4, 'd_act': 4}
+    config = {'d_obs': 9, 'd_z': 512, 'd_sel': 64, 'd_act': 4}
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     
-    weights_path = "brain_phase3_best.pth"
+    weights_path = "brain_vectorized_best.pth"
     if not os.path.exists(weights_path):
         print(f"Error: {weights_path} not found")
         return
 
     modes = ["full", "no_hippo", "no_thalamus", "no_neuromods", "no_bg_selection"]
-    seeds = [100, 101, 102, 103, 104] # Subset for speed
+    seeds = [100, 101, 102, 103, 104, 105, 106, 107, 108, 109]  # 10 seeds for robustness
     
     results = {}
     for mode in modes:

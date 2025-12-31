@@ -10,15 +10,15 @@ from digital_brain.datatypes import Obs
 from digital_brain.envs.pomdp_gridworld import POMDPGridworld
 
 def run_eval():
-    config = {'d_obs': 9, 'd_z': 32, 'd_sel': 4, 'd_act': 4}
+    config = {'d_obs': 9, 'd_z': 512, 'd_sel': 64, 'd_act': 4}
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     
     brain = DigitalBrain(config).to(device)
     try:
-        brain.load_state_dict(torch.load("brain_curriculum_size6_best.pth", map_location="cpu"), strict=False)
-        print("Loaded brain_curriculum_size6_best.pth")
+        brain.load_state_dict(torch.load("brain_vectorized_best.pth", map_location="cpu"), strict=False)
+        print("Loaded brain_vectorized_best.pth")
     except Exception as e:
         print(f"Failed to load checkpoint: {e}")
         return
@@ -26,12 +26,16 @@ def run_eval():
     brain.to(device)
 
     def eval_seed(seed, episodes=200, max_steps=150):
+        # Set RNG for reproducibility
+        torch.manual_seed(seed)
+        np.random.seed(seed)
         env = POMDPGridworld(size=5, seed=seed)
         succ = 0
         rets = []
         for _ in range(episodes):
             obs_np = env.reset()
             brain.reset(1, device=device)
+            brain.hippocampus.clear()  # Clear memory for clean episode
             prev_reward = torch.tensor([[0.0]], device=device)
             prev_done = torch.tensor([[False]], device=device)
             done = False
