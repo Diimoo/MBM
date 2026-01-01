@@ -34,12 +34,13 @@ class CorticalMicrocircuit(nn.Module):
         # Plasticity Rule
         self.plasticity = SynapticPlasticity(tau_e=50.0, learning_rate=1e-3)
         
-    def forward(self, x, state=None):
+    def forward(self, x, state=None, *, update_trace: bool = True):
         """
         Euler integration + Trace Update.
         x: (B, d_in)
         state: tuple(e_act, i_act, trace_ee)
           - trace_ee: (d_z, d_z) eligibility trace for W_ee
+        update_trace: if False, skip expensive Hebbian trace computation (2*B*n² FLOPs)
         """
         B = x.shape[0]
         if state is None:
@@ -65,12 +66,12 @@ class CorticalMicrocircuit(nn.Module):
         e_act_new = e_act + self.dt * de
         i_act_new = i_act + self.dt * di
         
-        # 3. Plasticity: Update Eligibility Trace for W_ee
-        # Pre: e_act (t), Post: e_act_new (t+1) approximation or just e_act (recurrent)
-        # Standard Hebbian: Pre * Post
-        # We use e_act as both Pre and Post for recurrent connections
-        # trace update uses batch activity
-        trace_ee_new = self.plasticity.update_trace(trace_ee, e_act, e_act_new)
+        # 3. Plasticity: Update Eligibility Trace for W_ee (only when learning)
+        # Skip when learn=False to save ~2*B*n² FLOPs per step
+        if update_trace:
+            trace_ee_new = self.plasticity.update_trace(trace_ee, e_act, e_act_new)
+        else:
+            trace_ee_new = trace_ee
         
         # No weight update here! Weights are updated by neuromodulators later.
         
@@ -110,8 +111,8 @@ class Cortex(nn.Module):
         self.microcircuit = CorticalMicrocircuit(d_obs, d_z)
         self.pred_head = nn.Linear(d_z, d_obs)
         
-    def forward(self, x, state):
-        z_t, new_state = self.microcircuit(x, state)
+    def forward(self, x, state, *, update_trace: bool = True):
+        z_t, new_state = self.microcircuit(x, state, update_trace=update_trace)
         pred_t = self.pred_head(z_t)
         return z_t, pred_t, new_state
         

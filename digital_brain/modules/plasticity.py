@@ -40,11 +40,17 @@ class SynapticPlasticity(nn.Module):
         """
         Computes weight change.
         Delta W = lr * trace * modulator
-        modulator: scalar signal (e.g., DA - baseline)
+        modulator: (B,)
+        trace: (d_pre, d_post) or (B, d_pre, d_post)
         """
-        # modulator is (B,). We probably want the mean signal over the batch?
-        # Or if the trace is already averaged, we take mean of mod.
-        mod_avg = modulator.mean()
-        
-        delta_w = self.lr * trace * mod_avg
+        if trace.dim() == 3:
+            # Per-sample trace: (B, d_pre, d_post)
+            # Weighted sum: Σ_b (trace[b] * modulator[b]) / B
+            # Using einsum for efficiency: b,bi,bj -> ij
+            # Actually we want (B, d_pre, d_post) multiplied by (B, 1, 1) then mean over B
+            delta_w = self.lr * (trace * modulator.view(-1, 1, 1)).mean(dim=0)
+        else:
+            # Averaged trace: (d_pre, d_post)
+            mod_avg = modulator.mean()
+            delta_w = self.lr * trace * mod_avg
         return delta_w

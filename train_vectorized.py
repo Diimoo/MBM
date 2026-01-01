@@ -5,29 +5,34 @@ import numpy as np
 import os
 import time
 import sys
+from digital_brain.envs.torch_vector_env import TorchVectorPOMDP
+from digital_brain.datatypes import Obs, BrainState, ModSignals
 from digital_brain.brain import DigitalBrain
-from digital_brain.datatypes import Obs
-from digital_brain.envs.vector_env import VectorPOMDP
+
+# Enable TF32 for faster matmuls on Ampere+ GPUs
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
+torch.set_float32_matmul_precision("high")
 
 def train_vectorized():
     config = {
         'd_obs': 9, 'd_z': 512, 'd_sel': 64, 'd_act': 4, 
-        'lr': 3.5e-4,  # Middle ground: 2.5e-4 too weak, 5e-4 too strong
-        'total_steps': 200000000,
+        'lr': 3.5e-4,
+        'total_steps': 2000000000,
         'num_envs': 4096,
         'num_steps': 128,
-        'ppo_epochs': 8,
-        'mini_batch_size': 32768,
+        'ppo_epochs': 4,           # Reduced from 8 (large batch doesn't need many epochs)
+        'mini_batch_size': 65536,  # Increased from 32768 (= 512 envs × 128 steps)
         'eps_clip': 0.2,
         'gamma': 0.99,
         'gae_lambda': 0.95,
-        'entropy_coef': 0.005,  # Reduced from 0.02 to stop pushing toward uniform
+        'entropy_coef': 0.005,
         'value_coef': 0.5,
-        'vf_clip': 0.2,  # Value clipping for stable critic
+        'vf_clip': 0.2,
         'target_kl': 0.015,  
         'seed': 42,
-        'eval_every': 20,
-        'eval_episodes': 200,  
+        'eval_every': 40,          # Less frequent eval (was 20)
+        'eval_episodes': 64,       # Reduced from 200
         'num_eval_envs': 64,  
         'selection_penalty': 0.001
     }
@@ -38,8 +43,8 @@ def train_vectorized():
     print(f"Using device: {device}")
     print(f"Parallel Envs: {config['num_envs']}")
 
-    envs = VectorPOMDP(num_envs=config['num_envs'], size=5, seed=config['seed'])
-    eval_env = VectorPOMDP(num_envs=config['num_eval_envs'], size=5, seed=config['seed'] + 1000)
+    envs = TorchVectorPOMDP(num_envs=config['num_envs'], size=5, device=device, seed=config['seed'])
+    eval_env = TorchVectorPOMDP(num_envs=config['num_eval_envs'], size=5, device=device, seed=config['seed'] + 1000)
 
     brain = DigitalBrain(config).to(device)
     
@@ -96,179 +101,222 @@ def train_vectorized():
             torch.cuda.synchronize()
         start_time = time.time()
         
-        # Buffer storage
-        obs_buf = torch.zeros((config['num_steps'], config['num_envs'], config['d_obs']), device=device)
-        act_buf = torch.zeros((config['num_steps'], config['num_envs']), device=device)
-        logp_buf = torch.zeros((config['num_steps'], config['num_envs']), device=device)
-        val_buf = torch.zeros((config['num_steps'], config['num_envs']), device=device)
-        rew_buf = torch.zeros((config['num_steps'], config['num_envs']), device=device)
-        done_buf = torch.zeros((config['num_steps'], config['num_envs']), device=device)
-        
-        # Recurrent state buffers (to re-run PPO)
-        # We treat internal brain state as part of the observation for PPO update
-        z_buf = torch.zeros((config['num_steps'], config['num_envs'], config['d_z']), device=device)
-        e_act_buf = torch.zeros((config['num_steps'], config['num_envs'], config['d_z']), device=device)
-        i_act_buf = torch.zeros((config['num_steps'], config['num_envs'], config['d_z']), device=device)
-        bg_val_buf = torch.zeros((config['num_steps'], config['num_envs'], 1), device=device)
-        sel_buf = torch.zeros((config['num_steps'], config['num_envs'], config['d_sel']), device=device)
-        mod_da = torch.zeros((config['num_steps'], config['num_envs']), device=device)
-        mod_ne = torch.zeros((config['num_steps'], config['num_envs']), device=device)
-        mod_ach = torch.zeros((config['num_steps'], config['num_envs']), device=device)
-        mod_5ht = torch.zeros((config['num_steps'], config['num_envs']), device=device)
-        pred_buf = torch.zeros((config['num_steps'], config['num_envs'], config['d_obs']), device=device)
+        # Minimal PPO buffers (CPU to save GPU memory, will transfer per minibatch)
+        # No more per-step state buffers - saves ~3 GB
+        T, E = config['num_steps'], config['num_envs']
+        obs_buf = torch.zeros((T, E, config['d_obs']), dtype=torch.float32)
+        act_buf = torch.zeros((T, E), dtype=torch.long)
+        logp_buf = torch.zeros((T, E), dtype=torch.float32)
+        val_buf = torch.zeros((T, E), dtype=torch.float32)
+        rew_buf = torch.zeros((T, E), dtype=torch.float32)
+        done_buf = torch.zeros((T, E), dtype=torch.bool)
+        prev_rew_buf = torch.zeros((T, E), dtype=torch.float32)  # For brain input
+        prev_done_buf = torch.zeros((T, E), dtype=torch.bool)
 
-        # 1) Collect Experience
-        for t in range(config['num_steps']):
-            with torch.no_grad():
-                # Store current state BEFORE step
-                z_buf[t] = brain.state.z
-                e_act_buf[t], i_act_buf[t], _ = brain.state.cortex_state
-                bg_val_buf[t] = brain.state.bg_state['prev_value']
-                sel_buf[t] = brain._prev_selection
-                mod_da[t] = brain._prev_mods.DA
-                mod_ne[t] = brain._prev_mods.NE
-                mod_ach[t] = brain._prev_mods.ACh
-                mod_5ht[t] = brain._prev_mods.HT5
-                pred_buf[t] = brain._prev_pred
+        # 1) Collect Experience (with inference_mode + autocast for speed)
+        with torch.inference_mode(), torch.autocast(device_type='cuda', dtype=torch.bfloat16, enabled=(device.type=='cuda')):
+            for t in range(T):
+                obs_t = obs_np # Already a tensor on device from TorchVectorPOMDP
                 
-                obs_t = torch.from_numpy(obs_np).to(device)
-                obs_buf[t] = obs_t
+                # Store inputs for this step
+                obs_buf[t] = obs_t.cpu()
+                prev_rew_buf[t] = prev_reward.squeeze(-1).cpu()
+                prev_done_buf[t] = prev_done.squeeze(-1).cpu()
                 
                 action, log_prob, value, _, _, _ = brain.step(Obs(x=obs_t), prev_reward, prev_done, learn=False)
                 
-                obs_np, reward, done, _ = envs.step(action.cpu().numpy())
+                obs_np, reward, done, _ = envs.step(action)
                 
-                act_buf[t] = action
-                logp_buf[t] = log_prob
-                val_buf[t] = value.squeeze(-1)
-                rew_buf[t] = torch.from_numpy(reward).to(device)
-                done_buf[t] = torch.from_numpy(done).to(device).float()
+                act_buf[t] = action.cpu()
+                logp_buf[t] = log_prob.float().cpu()
+                val_buf[t] = value.squeeze(-1).float().cpu()
+                rew_buf[t] = reward.cpu()
+                done_buf[t] = done.cpu()
                 
-                prev_reward = torch.from_numpy(reward).float().to(device).unsqueeze(1)
-                prev_done = torch.from_numpy(done).to(device).unsqueeze(1)
+                prev_reward = reward.float().unsqueeze(1)
+                prev_done = done.unsqueeze(1)
 
-        # 2) Compute GAE
-        with torch.no_grad():
-            obs_last = torch.from_numpy(obs_np).to(device)
+        # 2) Compute GAE (on CPU, then move advantages/returns)
+        with torch.inference_mode(), torch.autocast(device_type='cuda', dtype=torch.bfloat16, enabled=(device.type=='cuda')):
+            obs_last = obs_np # Already a tensor on device
             gated_last = brain.thalamus.gate(obs_last, brain._prev_selection, brain._prev_mods)
-            z_last, _, _ = brain.cortex.forward(gated_last, brain.state.cortex_state)
-            next_value = brain.bg.value_head(z_last).squeeze(-1)
+            z_last, _, _ = brain.cortex.forward(gated_last, brain.state.cortex_state, update_trace=False)
+            next_value = brain.bg.value_head(z_last).squeeze(-1).float().cpu()
             
-        adv_buf = torch.zeros_like(rew_buf)
-        last_gae_lam = 0
-        for t in reversed(range(config['num_steps'])):
-            next_non_terminal = 1.0 - done_buf[t]
-            next_values = next_value if t == config['num_steps'] - 1 else val_buf[t + 1]
+        adv_buf = torch.zeros((T, E), dtype=torch.float32)
+        last_gae_lam = torch.zeros(E, dtype=torch.float32)
+        for t in reversed(range(T)):
+            next_non_terminal = (~done_buf[t]).float()
+            next_values = next_value if t == T - 1 else val_buf[t + 1]
             delta = rew_buf[t] + config['gamma'] * next_values * next_non_terminal - val_buf[t]
-            adv_buf[t] = last_gae_lam = delta + config['gamma'] * config['gae_lambda'] * next_non_terminal * last_gae_lam
+            last_gae_lam = delta + config['gamma'] * config['gae_lambda'] * next_non_terminal * last_gae_lam
+            adv_buf[t] = last_gae_lam
         
         ret_buf = adv_buf + val_buf
 
-        # Flatten buffers
-        obs_f = obs_buf.reshape(-1, config['d_obs'])
-        act_f = act_buf.reshape(-1)
-        logp_f = logp_buf.reshape(-1)
-        adv_f = adv_buf.reshape(-1)
-        ret_f = ret_buf.reshape(-1)
-        val_f = val_buf.reshape(-1)
-        
-        # Flatten state buffers
-        z_f = z_buf.reshape(-1, config['d_z'])
-        e_f = e_act_buf.reshape(-1, config['d_z'])
-        i_f = i_act_buf.reshape(-1, config['d_z'])
-        bgv_f = bg_val_buf.reshape(-1, 1)
-        sel_f = sel_buf.reshape(-1, config['d_sel'])
-        da_f = mod_da.reshape(-1)
-        ne_f = mod_ne.reshape(-1)
-        ach_f = mod_ach.reshape(-1)
-        ht_f = mod_5ht.reshape(-1)
-        pred_f = pred_buf.reshape(-1, config['d_obs'])
-
-        # 3) PPO Update Epochs with KL Early-Stop and Diagnostics
+        # 3) Recurrent PPO Update - minibatch over envs, unroll full sequences
+        # Save collector state to restore after PPO
         collector_state = (
             brain.state, 
-            brain._prev_selection, 
-            brain._prev_mods, 
-            brain._prev_pred
+            brain._prev_selection.clone(), 
+            ModSignals(DA=brain._prev_mods.DA.clone(), NE=brain._prev_mods.NE.clone(),
+                       ACh=brain._prev_mods.ACh.clone(), HT5=brain._prev_mods.HT5.clone()),
+            brain._prev_pred.clone()
         )
-        from digital_brain.datatypes import BrainState, ModSignals
+
+        # 3.1) World Model update (Optional but recommended for cortex prediction)
+        # Predict next obs from current state
+        # (This is a simplified version, ideally part of the main PPO update)
 
         # Diagnostics accumulators
         total_kl, total_clipfrac, total_entropy, total_batches = 0.0, 0.0, 0.0, 0
         total_logit_scale, total_prob_max = 0.0, 0.0
         early_stop_epoch = config['ppo_epochs']
         
+        # Recurrent PPO: minibatch_size = envs_per_batch * T
+        envs_per_batch = config['mini_batch_size'] // T  # 65536 / 128 = 512 envs
+        
         for epoch in range(config['ppo_epochs']):
             epoch_kl = 0.0
             epoch_batches = 0
-            indices = torch.randperm(obs_f.shape[0], device=device)
+            env_perm = torch.randperm(E)  # Shuffle env indices
             
-            for start in range(0, obs_f.shape[0], config['mini_batch_size']):
-                end = start + config['mini_batch_size']
-                idx = indices[start:end]
+            for batch_start in range(0, E, envs_per_batch):
+                batch_end = min(batch_start + envs_per_batch, E)
+                env_idx = env_perm[batch_start:batch_end]
+                M = len(env_idx)  # Actual batch size (may be smaller at end)
                 
-                # Reconstruct brain state for this minibatch
-                brain.state = BrainState(
-                    z=z_f[idx],
-                    cortex_state=(e_f[idx], i_f[idx], collector_state[0].cortex_state[2]),
-                    bg_state={'prev_value': bgv_f[idx]},
-                    hip_state=None, cerebellum_state=None
-                )
-                brain._prev_selection = sel_f[idx]
-                brain._prev_mods = ModSignals(DA=da_f[idx], NE=ne_f[idx], ACh=ach_f[idx], HT5=ht_f[idx])
-                brain._prev_pred = pred_f[idx]
+                # Load sequences for selected envs -> GPU [T, M, ...]
+                obs_seq = obs_buf[:, env_idx].to(device)
+                act_seq = act_buf[:, env_idx].to(device)
+                logp_old_seq = logp_buf[:, env_idx].to(device)
+                adv_seq = adv_buf[:, env_idx].to(device)
+                ret_seq = ret_buf[:, env_idx].to(device)
+                val_old_seq = val_buf[:, env_idx].to(device)
+                done_seq = done_buf[:, env_idx].to(device)
+                prev_rew_seq = prev_rew_buf[:, env_idx].to(device)
+                prev_done_seq = prev_done_buf[:, env_idx].to(device)
                 
-                # Forward pass
-                gated_x = brain.thalamus.gate(obs_f[idx], brain._prev_selection, brain._prev_mods)
-                z_t, _, _ = brain.cortex.forward(gated_x, brain.state.cortex_state)
+                # Normalize advantages ONCE per minibatch (across all T*M samples)
+                adv_seq = (adv_seq - adv_seq.mean()) / (adv_seq.std() + 1e-8)
                 
-                logits = brain.bg.policy_head(z_t)
-                dist = torch.distributions.Categorical(logits=logits)  # Direct logits, no clamp
+                # Initialize fresh hidden state for this minibatch
+                brain.reset(M, device=device)
                 
-                new_logp = dist.log_prob(act_f[idx])
-                entropy = dist.entropy()
-                new_val = brain.bg.value_head(z_t).squeeze(-1)
+                # Accumulate losses over sequence
+                policy_losses = []
+                value_losses = []
+                entropies = []
+                kls = []
+                clipfracs = []
+                logit_scales = []
+                prob_maxes = []
                 
-                # PPO Diagnostics
-                with torch.no_grad():
-                    log_ratio = new_logp - logp_f[idx]
-                    approx_kl = (-log_ratio).mean().item()  # KL(old||new)
-                    clipfrac = ((torch.exp(log_ratio) - 1.0).abs() > config['eps_clip']).float().mean().item()
-                    logit_scale = logits.abs().mean().item()
-                    probs = dist.probs
-                    prob_max = probs.max(dim=1).values.mean().item()
+                with torch.autocast(device_type='cuda', dtype=torch.bfloat16, enabled=(device.type=='cuda')):
+                    for t in range(T):
+                        # Reset hidden state for envs that were done at t-1
+                        if t > 0:
+                            done_mask = done_seq[t-1].view(M, 1)
+                            if done_mask.any():
+                                with torch.no_grad():
+                                    brain.state.z = brain.state.z * (~done_mask).float()
+                                    e_act, i_act, trace_ee = brain.state.cortex_state
+                                    e_act = e_act * (~done_mask).float()
+                                    i_act = i_act * (~done_mask).float()
+                                    brain.state.cortex_state = (e_act, i_act, trace_ee)
+                                    brain.state.bg_state['prev_value'] = brain.state.bg_state['prev_value'] * (~done_mask).float()
+                                    brain._prev_selection = brain._prev_selection * (~done_mask).float()
+                                    brain._prev_pred = brain._prev_pred * (~done_mask).float()
+                                    mask_1d = (~done_mask.squeeze(-1)).float()
+                                    brain._prev_mods.DA = brain._prev_mods.DA * mask_1d
+                                    brain._prev_mods.NE = brain._prev_mods.NE * mask_1d
+                                    brain._prev_mods.ACh = brain._prev_mods.ACh * mask_1d + (1 - mask_1d) * 0.5
+                                    brain._prev_mods.HT5 = brain._prev_mods.HT5 * mask_1d + (1 - mask_1d) * 0.5
+                        
+                        # Forward pass (no trace update during PPO)
+                        obs_t = obs_seq[t]
+                        prev_rew_t = prev_rew_seq[t].unsqueeze(-1)
+                        prev_done_t = prev_done_seq[t].unsqueeze(-1)
+                        
+                        gated_x = brain.thalamus.gate(obs_t, brain._prev_selection, brain._prev_mods)
+                        z_t, pred_t, new_cortex_state = brain.cortex.forward(gated_x, brain.state.cortex_state, update_trace=False)
+                        
+                        # Priority 4: Predictive World Model Loss
+                        if t < T - 1:
+                            wm_loss_t = torch.mean((pred_t - obs_seq[t+1]) ** 2)
+                            policy_losses.append(wm_loss_t * 0.1) 
+                        
+                        logits = brain.bg.policy_head(z_t)
+                        # ...
+                        dist = torch.distributions.Categorical(logits=logits.float())
+                        new_logp = dist.log_prob(act_seq[t])
+                        entropy = dist.entropy()
+                        new_val = brain.bg.value_head(z_t).squeeze(-1).float()  # FP32 for value loss
+                        
+                        # Update brain state for next step (detached)
+                        with torch.no_grad():
+                            brain.state.z = z_t.detach()
+                            brain.state.cortex_state = tuple(s.detach() for s in new_cortex_state)
+                            brain.state.bg_state['prev_value'] = new_val.unsqueeze(-1).detach()
+                            # Update selection/mods (simplified - use defaults since not learning)
+                            brain._prev_pred = pred_t.detach()
+                        
+                        # PPO losses for this timestep
+                        log_ratio = new_logp - logp_old_seq[t]
+                        ratio = torch.exp(log_ratio)
+                        
+                        # Use pre-normalized advantages (normalized once per minibatch above)
+                        mb_adv = adv_seq[t]
+                        
+                        surr1 = ratio * mb_adv
+                        surr2 = torch.clamp(ratio, 1.0 - config['eps_clip'], 1.0 + config['eps_clip']) * mb_adv
+                        policy_loss_t = -torch.min(surr1, surr2).mean()
+                        
+                        # Value clipping
+                        old_val = val_old_seq[t]
+                        v_clipped = old_val + (new_val - old_val).clamp(-config['vf_clip'], config['vf_clip'])
+                        v_loss1 = (new_val - ret_seq[t])**2
+                        v_loss2 = (v_clipped - ret_seq[t])**2
+                        val_loss_t = 0.5 * torch.max(v_loss1, v_loss2).mean()
+                        
+                        policy_losses.append(policy_loss_t)
+                        value_losses.append(val_loss_t)
+                        entropies.append(entropy.mean())
+                        
+                        # Diagnostics (no grad)
+                        with torch.no_grad():
+                            kls.append((-log_ratio).mean().item())
+                            clipfracs.append(((ratio - 1.0).abs() > config['eps_clip']).float().mean().item())
+                            logit_scales.append(logits.abs().mean().item())
+                            prob_maxes.append(dist.probs.max(dim=1).values.mean().item())
                 
-                total_kl += approx_kl
-                total_clipfrac += clipfrac
-                total_entropy += entropy.mean().item()
-                total_logit_scale += logit_scale
-                total_prob_max += prob_max
-                total_batches += 1
-                epoch_kl += approx_kl
-                epoch_batches += 1
+                # Aggregate losses over sequence
+                policy_loss = torch.stack(policy_losses).mean()
+                val_loss = torch.stack(value_losses).mean()
+                entropy_loss = torch.stack(entropies).mean()
                 
-                # Ratio and Clipped Objective
-                ratio = torch.exp(log_ratio)
-                mb_adv = adv_f[idx]
-                mb_adv = (mb_adv - mb_adv.mean()) / (mb_adv.std() + 1e-8)
+                loss = policy_loss + config['value_coef'] * val_loss - config['entropy_coef'] * entropy_loss
                 
-                surr1 = ratio * mb_adv
-                surr2 = torch.clamp(ratio, 1.0 - config['eps_clip'], 1.0 + config['eps_clip']) * mb_adv
-                policy_loss = -torch.min(surr1, surr2).mean()
-                
-                # Value clipping for stable critic
-                old_val = val_f[idx]
-                v_clipped = old_val + (new_val - old_val).clamp(-config['vf_clip'], config['vf_clip'])
-                v_loss1 = (new_val - ret_f[idx])**2
-                v_loss2 = (v_clipped - ret_f[idx])**2
-                val_loss = 0.5 * torch.max(v_loss1, v_loss2).mean()
-                
-                loss = policy_loss + config['value_coef'] * val_loss - config['entropy_coef'] * entropy.mean()
-                
-                optimizer.zero_grad()
+                if torch.isnan(loss):
+                    print(f"NaN loss detected at update {update}, epoch {epoch}! Skipping batch.")
+                    optimizer.zero_grad(set_to_none=True)
+                    continue
+
+                optimizer.zero_grad(set_to_none=True)
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(brain.parameters(), 0.5)
+                torch.nn.utils.clip_grad_norm_(trainable_params, 0.5)
                 optimizer.step()
+                
+                # Accumulate diagnostics
+                batch_kl = np.mean(kls)
+                total_kl += batch_kl
+                total_clipfrac += np.mean(clipfracs)
+                total_entropy += entropy_loss.item()
+                total_logit_scale += np.mean(logit_scales)
+                total_prob_max += np.mean(prob_maxes)
+                total_batches += 1
+                epoch_kl += batch_kl
+                epoch_batches += 1
             
             # KL Early-Stop check after each epoch
             epoch_kl_avg = epoch_kl / max(epoch_batches, 1)
@@ -277,7 +325,10 @@ def train_vectorized():
                 break
 
         # Restore collector state
-        brain.state, brain._prev_selection, brain._prev_mods, brain._prev_pred = collector_state
+        brain.state = collector_state[0]
+        brain._prev_selection = collector_state[1]
+        brain._prev_mods = collector_state[2]
+        brain._prev_pred = collector_state[3]
         
         # Compute diagnostics averages
         avg_kl = total_kl / max(total_batches, 1)
@@ -288,7 +339,9 @@ def train_vectorized():
         
         # Explained variance: how well value predicts returns
         with torch.no_grad():
-            ev = 1 - (ret_f - val_f).var() / (ret_f.var() + 1e-8)
+            ret_flat = ret_buf.flatten()
+            val_flat = val_buf.flatten()
+            ev = 1 - (ret_flat - val_flat).var() / (ret_flat.var() + 1e-8)
             ev = ev.item()
 
         if device.type == 'cuda':
@@ -325,7 +378,7 @@ def eval_vectorized(brain, env, device, episodes, max_steps):
     completed = 0
     
     while completed < episodes:
-        obs_np = env.reset()
+        obs_t = env.reset()
         brain.reset(num_envs, device=device)
         prev_reward = torch.zeros(num_envs, 1, device=device)
         prev_done = torch.zeros(num_envs, 1, dtype=torch.bool, device=device)
@@ -334,19 +387,16 @@ def eval_vectorized(brain, env, device, episodes, max_steps):
         ep_done = torch.zeros(num_envs, dtype=torch.bool, device=device)
         
         for step in range(max_steps):
-            obs = Obs(x=torch.from_numpy(obs_np).to(device))
+            obs = Obs(x=obs_t)
             action, _, _, _, _, _ = brain.act(obs, prev_reward, prev_done)
-            obs_np, reward, done, _ = env.step(action.cpu().numpy())
-            
-            reward_t = torch.from_numpy(reward).to(device)
-            done_t = torch.from_numpy(done).to(device)
+            obs_t, reward, done, _ = env.step(action)
             
             # Only accumulate for not-yet-done episodes
-            ep_returns += reward_t * (~ep_done).float()
-            ep_done = ep_done | done_t
+            ep_returns += reward * (~ep_done).float()
+            ep_done = ep_done | done
             
-            prev_reward = reward_t.float().unsqueeze(1)
-            prev_done = done_t.unsqueeze(1)
+            prev_reward = reward.float().unsqueeze(1)
+            prev_done = done.unsqueeze(1)
             
             if ep_done.all():
                 break

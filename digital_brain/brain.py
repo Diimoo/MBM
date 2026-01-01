@@ -112,16 +112,26 @@ class DigitalBrain(nn.Module):
         # 1) Thalamus gating of current inputs using previous selection/mods
         gated_x = self.thalamus.gate(obs.x, self._prev_selection, self._prev_mods)
 
-        # 2) Cortex update on gated inputs
-        z_t, pred_t, new_cortex_state = self.cortex.forward(gated_x, self.state.cortex_state)
+        # 2) Cortex update on gated inputs (skip trace computation when not learning)
+        z_t, pred_t, new_cortex_state = self.cortex.forward(gated_x, self.state.cortex_state, update_trace=learn)
 
-        # 3) Hippocampus novelty + retrieval (optional)
+        # 3) Hippocampus novelty + retrieval
         novelty = self.hippocampus.novelty(z_t)
-        _ = self.hippocampus.retrieve(z_t)  # available; integration optional in v0
+        retrieved = self.hippocampus.retrieve(z_t)
 
         # 4) Basal Ganglia: action/selection + TD-RPE (DA) computed using last reward and current value
+        # 7) Cerebellum: Compute correction signal
+        correction, _timing = self.cerebellum.forward(z_t, obs.x)
+
+        # 4.1) Basal Ganglia: Step with memory-augmented policy and cerebellar correction
         selection, da, action, log_prob, value, entropy = self.bg.step(
-            z_t, reward_b.unsqueeze(1), obs.ctx, done_b.unsqueeze(1), self.state.bg_state['prev_value']
+            z_t, 
+            reward_b.unsqueeze(1), 
+            obs.ctx, 
+            done_b.unsqueeze(1), 
+            self.state.bg_state['prev_value'],
+            memory_context=retrieved,
+            cerebellum_correction=correction
         )
 
         # 5) Neuromodulators (use pred_error as ACh proxy)
@@ -135,11 +145,6 @@ class DigitalBrain(nn.Module):
             # Hippocampus encode on novelty/reward (subset selection handled in hippocampus.encode)
             if torch.any(novelty > 0.6) or torch.any(reward_b != 0):
                 self.hippocampus.encode(z_t)
-
-        # 7) Cerebellum (not used to change discrete action in v0)
-        _correction, _timing = self.cerebellum.forward(z_t, obs.x)
-
-        # 8) Update recurrent runtime state
         self.state.z = z_t.detach()
         # Detach each element of the tuple state (E, I)
         self.state.cortex_state = tuple(s.detach() for s in new_cortex_state)
