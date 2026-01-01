@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .plasticity import SynapticPlasticity
+from .sparse_cortex import SparseCorticalMicrocircuit
 
 class CorticalMicrocircuit(nn.Module):
     """
@@ -66,6 +67,10 @@ class CorticalMicrocircuit(nn.Module):
         e_act_new = e_act + self.dt * de
         i_act_new = i_act + self.dt * di
         
+        # Activity clamping for stability (Priority 1)
+        e_act_new = torch.clamp(e_act_new, 0.0, 50.0)
+        i_act_new = torch.clamp(i_act_new, 0.0, 50.0)
+        
         # 3. Plasticity: Update Eligibility Trace for W_ee (only when learning)
         # Skip when learn=False to save ~2*B*n² FLOPs per step
         if update_trace:
@@ -94,21 +99,22 @@ class CorticalMicrocircuit(nn.Module):
         delta_w = self.plasticity.compute_delta_w(trace_ee, da)
         
         # Update weights (in-place)
-        # Note: W_ee must ensure positive entries if it's strictly Excitatory?
-        # Kandel: "Synapses are strengthened or weakened". Sign might flip if standard STDP.
-        # But usually E->E remains E. We clip or abs if needed.
-        # For now, let's allow free evolution.
         with torch.no_grad():
             self.W_ee.add_(delta_w)
+            # Weight clamping for stability (Priority 1)
+            self.W_ee.clamp_(-5.0, 5.0)
 
 class Cortex(nn.Module):
     """
     World model using Cortical Microcircuits with Plasticity.
     """
-    def __init__(self, d_obs, d_z, d_act):
+    def __init__(self, d_obs, d_z, d_act, sparse=False, sparsity=0.01, locality_radius=None):
         super().__init__()
         self.d_z = d_z
-        self.microcircuit = CorticalMicrocircuit(d_obs, d_z)
+        if sparse:
+            self.microcircuit = SparseCorticalMicrocircuit(d_obs, d_z, sparsity=sparsity, locality_radius=locality_radius)
+        else:
+            self.microcircuit = CorticalMicrocircuit(d_obs, d_z)
         self.pred_head = nn.Linear(d_z, d_obs)
         
     def forward(self, x, state, *, update_trace: bool = True):

@@ -23,7 +23,14 @@ class DigitalBrain(nn.Module):
         from .modules.cerebellum import Cerebellum
         from .modules.neuromodulators import Neuromodulators
 
-        self.cortex = Cortex(config['d_obs'], config['d_z'], config['d_act'])
+        self.cortex = Cortex(
+            config['d_obs'], 
+            config['d_z'], 
+            config['d_act'], 
+            sparse=config.get('sparse_cortex', False),
+            sparsity=config.get('sparsity', 0.01),
+            locality_radius=config.get('locality_radius', None)
+        )
         self.thalamus = Thalamus(config['d_obs'], config['d_sel'])
         self.hippocampus = Hippocampus(config['d_z'])
         self.bg = BasalGanglia(config['d_z'], config['d_sel'], config['d_act'])
@@ -42,8 +49,15 @@ class DigitalBrain(nn.Module):
         self.to(device) # Ensure modules are on device
         
         z0 = torch.zeros(batch_size, self.config['d_z'], device=device)
-        # cortex_state: (e_act, i_act, trace_ee)
-        trace0 = torch.zeros(self.config['d_z'], self.config['d_z'], device=device)
+        
+        # Determine trace shape based on whether cortex is sparse
+        if hasattr(self.cortex.microcircuit, 'W_ee_values'):
+            # Sparse: trace matches number of connections
+            trace0 = torch.zeros(self.cortex.microcircuit.W_ee_values.shape[0], device=device)
+        else:
+            # Dense: trace is (d_z, d_z)
+            trace0 = torch.zeros(self.config['d_z'], self.config['d_z'], device=device)
+            
         self.state = BrainState(
             z=z0,
             cortex_state=(z0, z0, trace0),  
@@ -71,6 +85,12 @@ class DigitalBrain(nn.Module):
         Returns:
             action, log_prob, value, state, log, entropy
         """
+        # Read granular control flags from config
+        use_hip = self.config.get('use_hippocampus', True)
+        use_plas = self.config.get('use_plasticity', True)
+        use_mem_pol = self.config.get('use_memory_policy', True)
+        use_cereb = self.config.get('use_cerebellum', True)
+
         B = obs.x.shape[0]
         if self.state is None:
             self.reset(B, obs.x.device)
@@ -112,16 +132,22 @@ class DigitalBrain(nn.Module):
         # 1) Thalamus gating of current inputs using previous selection/mods
         gated_x = self.thalamus.gate(obs.x, self._prev_selection, self._prev_mods)
 
-        # 2) Cortex update on gated inputs (skip trace computation when not learning)
-        z_t, pred_t, new_cortex_state = self.cortex.forward(gated_x, self.state.cortex_state, update_trace=learn)
+        # 2) Cortex update on gated inputs
+        # update_trace controlled by global learn AND config plasticity flag
+        z_t, pred_t, new_cortex_state = self.cortex.forward(gated_x, self.state.cortex_state, update_trace=(learn and use_plas))
 
         # 3) Hippocampus novelty + retrieval
-        novelty = self.hippocampus.novelty(z_t)
-        retrieved = self.hippocampus.retrieve(z_t)
+        novelty = torch.zeros(B, device=obs.x.device)
+        retrieved = None
+        if use_hip:
+            novelty = self.hippocampus.novelty(z_t)
+            retrieved = self.hippocampus.retrieve(z_t)
 
         # 4) Basal Ganglia: action/selection + TD-RPE (DA) computed using last reward and current value
         # 7) Cerebellum: Compute correction signal
-        correction, _timing = self.cerebellum.forward(z_t, obs.x)
+        correction = None
+        if use_cereb:
+            correction, _timing = self.cerebellum.forward(z_t, obs.x)
 
         # 4.1) Basal Ganglia: Step with memory-augmented policy and cerebellar correction
         selection, da, action, log_prob, value, entropy = self.bg.step(
@@ -130,7 +156,7 @@ class DigitalBrain(nn.Module):
             obs.ctx, 
             done_b.unsqueeze(1), 
             self.state.bg_state['prev_value'],
-            memory_context=retrieved,
+            memory_context=retrieved if use_mem_pol else None,
             cerebellum_correction=correction
         )
 
@@ -140,11 +166,13 @@ class DigitalBrain(nn.Module):
         # 6) Learning-related side effects
         if learn:
             # Plasticity Update (3-Factor Rule)
-            self.cortex.update_weights(mods, new_cortex_state)
+            if use_plas:
+                self.cortex.update_weights(mods, new_cortex_state)
             
-            # Hippocampus encode on novelty/reward (subset selection handled in hippocampus.encode)
-            if torch.any(novelty > 0.6) or torch.any(reward_b != 0):
-                self.hippocampus.encode(z_t)
+            # Hippocampus encode on novelty/reward
+            if use_hip:
+                if torch.any(novelty > 0.6) or torch.any(reward_b != 0):
+                    self.hippocampus.encode(z_t)
         self.state.z = z_t.detach()
         # Detach each element of the tuple state (E, I)
         self.state.cortex_state = tuple(s.detach() for s in new_cortex_state)

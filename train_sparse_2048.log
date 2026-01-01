@@ -1,0 +1,36 @@
+Using device: cuda
+Parallel Envs: 4096
+Starting fresh: Error(s) in loading state_dict for DigitalBrain:
+	size mismatch for cortex.microcircuit.W_in: copying a param with shape torch.Size([9, 512]) from checkpoint, the shape in current model is torch.Size([9, 2048]).
+	size mismatch for cortex.microcircuit.W_ei: copying a param with shape torUsing device: cuda
+Parallel Envs: 4096
+Starting fresh: Error(s) in loading state_dict for DigitalBrain:
+	size mismatch for cortex.microcircuit.W_in: copying a param with shape torch.Size([9, 512]) from checkpoint, the shape in current model is torch.Size([9, 2048]).
+	size mismatch for cortex.microcircuit.W_ei: copying a param with shape torch.Size([512, 512]) from checkpoint, the shape in current model is torch.Size([2048, 2048]).
+	size mismatch for cortex.microcircuit.W_ie: copying a param with shape torch.Size([512, 512]) from checkpoint, the shape in current model is torch.Size([2048, 2048]).
+	size mismatch for cortex.pred_head.weight: copying a param with shape torch.Size([9, 512]) from checkpoint, the shape in current model is torch.Size([9, 2048]).
+	size mismatch for hippocampus.memory: copying a param with shape torch.Size([1000, 512]) from checkpoint, the shape in current model is torch.Size([1000, 2048]).
+	size mismatch for bg.value_head.weight: copying a param with shape torch.Size([1, 512]) from checkpoint, the shape in current model is torch.Size([1, 2048]).
+	size mismatch for bg.selection_head.weight: copying a param with shape torch.Size([64, 512]) from checkpoint, the shape in current model is torch.Size([64, 2048]).
+	size mismatch for bg.policy_head.weight: copying a param with shape torch.Size([4, 512]) from checkpoint, the shape in current model is torch.Size([4, 2048]).
+	size mismatch for bg.memory_head.weight: copying a param with shape torch.Size([4, 512]) from checkpoint, the shape in current model is torch.Size([4, 2048]).
+	size mismatch for cerebellum.fc.0.weight: copying a param with shape torch.Size([512, 521]) from checkpoint, the shape in current model is torch.Size([2048, 2057]).
+	size mismatch for cerebellum.fc.0.bias: copying a param with shape torch.Size([512]) from checkpoint, the shape in current model is torch.Size([2048]).
+	size mismatch for cerebellum.fc.2.weight: copying a param with shape torch.Size([4, 512]) from checkpoint, the shape in current model is torch.Size([4, 2048]).
+Stage-B: Training BG + Thalamus + Cerebellum + PredHead (4391583 params)
+Starting Vectorized PPO Training (4096 envs, 128 steps/upd)...
+Traceback (most recent call last):
+  File "/home/ahmed/Downloads/Kandel/train_vectorized.py", line 477, in <module>
+    ep_returns += reward * (~ep_done).float()
+    ^^^^^^^^^^
+  File "/home/ahmed/Downloads/Kandel/train_vectorized.py", line 418, in train_vectorized
+    avg_da_std = total_da_std / max(total_batches, 1)
+                      ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
+  File "/home/ahmed/Downloads/Kandel/train_vectorized.py", line 20, in log_stability_metrics
+    if hasattr(brain.cortex.microcircuit, 'W_ee'):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ahmed/.local/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1962, in __getattr__
+    raise AttributeError(
+        f"'{type(self).__name__}' object has no attribute '{name}'"
+    )
+AttributeError: 'SparseCorticalMicrocircuit' object has no attribute 'W_ee'. Did you mean: 'W_ei'?

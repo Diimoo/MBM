@@ -14,24 +14,23 @@ class SynapticPlasticity(nn.Module):
         self.tau_e = tau_e
         self.lr = learning_rate
         
-    def update_trace(self, trace, pre, post, dt=1.0):
+    def update_trace(self, trace, pre, post, dt=1.0, average_batch=True):
         """
         Updates the eligibility trace based on pre- and post-synaptic activity.
-        trace: (d_pre, d_post) or batch-wise
+        trace: (d_pre, d_post) or (B, d_pre, d_post)
         pre: (B, d_pre)
         post: (B, d_post)
+        average_batch: if True, averages across batch (saves memory).
         """
-        # Hebbian coincidence: pre^T * post
-        # For batch processing, we can average over batch or keep batch dim?
-        # Weights are shared across batch, so traces should probably be accumulated or averaged?
-        # In a biological setting, this happens per synapse. We'll average over batch for weight update.
-        
-        # Efficient average outer product: (d_pre, B) @ (B, d_post) -> (d_pre, d_post)
-        # Instead of torch.bmm which creates (B, d_pre, d_post) and OOMs.
-        hebbian_avg = (pre.t() @ post) / pre.shape[0]
+        if average_batch:
+            # Efficient average outer product: (d_pre, B) @ (B, d_post) -> (d_pre, d_post)
+            hebbian = (pre.t() @ post) / pre.shape[0]
+        else:
+            # Per-sample outer product: (B, d_pre, 1) * (B, 1, d_post) -> (B, d_pre, d_post)
+            hebbian = torch.bmm(pre.unsqueeze(2), post.unsqueeze(1))
         
         # dE = (-E/tau + Hebbian) * dt
-        delta_e = (-trace + hebbian_avg) / self.tau_e
+        delta_e = (-trace + hebbian) / self.tau_e
         new_trace = trace + delta_e * dt
         
         return new_trace

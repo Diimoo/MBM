@@ -14,11 +14,52 @@ torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 torch.set_float32_matmul_precision("high")
 
+def log_stability_metrics(brain, update, avg_kl, avg_entropy, ev, fps, stage_str, avg_da_std, sr=None):
+    with torch.no_grad():
+        # Cortex metrics
+        if hasattr(brain.cortex.microcircuit, 'W_ee'):
+            w_ee = brain.cortex.microcircuit.W_ee
+        else:
+            w_ee = brain.cortex.microcircuit.W_ee_values
+            
+        w_ee_max = w_ee.abs().max().item()
+        w_ee_mean = w_ee.abs().mean().item()
+        
+        # State metrics (using current brain state)
+        e_act, i_act, trace_ee = brain.state.cortex_state
+        trace_max = trace_ee.abs().max().item()
+        
+        # Policy head weight norms
+        policy_w_max = brain.bg.policy_head.weight.abs().max().item()
+        
+        has_nan = torch.isnan(w_ee).any().item()
+        
+    sr_str = f" | SR {sr:.3f}" if sr is not None else ""
+    print(f"[{stage_str}] Upd {update:4d}{sr_str} | EV {ev:.2f} | KL {avg_kl:.4f} | DA_std {avg_da_std:.2f} | W_max {w_ee_max:.2f} | Tr_max {trace_max:.2f} | PolW {policy_w_max:.2f} | FPS {fps:.0f}")
+    
+    if w_ee_max > 100.0 or has_nan:
+        print(f"CRITICAL: Stability issue detected! W_max={w_ee_max:.2f}, NaN={has_nan}")
+        return True # Signal instability
+    return False
+
+import argparse
+
 def train_vectorized():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--sparse_cortex', type=bool, default=False)
+    parser.add_argument('--d_z', type=int, default=512)
+    parser.add_argument('--total_steps', type=int, default=2000000000)
+    parser.add_argument('--use_hippocampus', type=bool, default=True)
+    parser.add_argument('--use_plasticity', type=bool, default=True)
+    parser.add_argument('--use_memory_policy', type=bool, default=True)
+    parser.add_argument('--use_cerebellum', type=bool, default=True)
+    parser.add_argument('--locality_radius', type=int, default=None)
+    args, unknown = parser.parse_known_args()
+
     config = {
-        'd_obs': 9, 'd_z': 512, 'd_sel': 64, 'd_act': 4, 
+        'd_obs': 9, 'd_z': args.d_z, 'd_sel': 64, 'd_act': 4, 
         'lr': 3.5e-4,
-        'total_steps': 2000000000,
+        'total_steps': args.total_steps,
         'num_envs': 4096,
         'num_steps': 128,
         'ppo_epochs': 4,           # Reduced from 8 (large batch doesn't need many epochs)
@@ -34,7 +75,14 @@ def train_vectorized():
         'eval_every': 40,          # Less frequent eval (was 20)
         'eval_episodes': 64,       # Reduced from 200
         'num_eval_envs': 64,  
-        'selection_penalty': 0.001
+        'selection_penalty': 0.001,
+        'sparse_cortex': args.sparse_cortex,    # Toggle for sparse W_ee (O(N) scaling)
+        'sparsity': 0.01,
+        'use_hippocampus': args.use_hippocampus,
+        'use_plasticity': args.use_plasticity,
+        'use_memory_policy': args.use_memory_policy,
+        'use_cerebellum': args.use_cerebellum,
+        'locality_radius': args.locality_radius
     }
 
     torch.manual_seed(config['seed'])
@@ -72,15 +120,25 @@ def train_vectorized():
         trainable_params = list(brain.bg.policy_head.parameters()) + list(brain.bg.value_head.parameters())
         print(f"Stage-A: Frozen all except BG policy/value ({sum(p.numel() for p in trainable_params)} params)")
     else:
-        # Stage-B: BG + Thalamus (Cortex frozen)
+        # Stage-B: BG + Thalamus + Cerebellum + Cortex Heads (Cortex recurrent frozen)
         for p in brain.parameters():
             p.requires_grad = False
         for p in brain.bg.parameters():
             p.requires_grad = True
         for p in brain.thalamus.parameters():
             p.requires_grad = True
-        trainable_params = list(brain.bg.parameters()) + list(brain.thalamus.parameters())
-        print(f"Stage-B: Training BG + Thalamus ({sum(p.numel() for p in trainable_params)} params)")
+        for p in brain.cerebellum.parameters():
+            p.requires_grad = True
+        for p in brain.cortex.pred_head.parameters():
+            p.requires_grad = True
+        brain.cortex.microcircuit.W_in.requires_grad = True # Unfreeze input weights for WM
+            
+        trainable_params = (list(brain.bg.parameters()) + 
+                            list(brain.thalamus.parameters()) + 
+                            list(brain.cerebellum.parameters()) + 
+                            list(brain.cortex.pred_head.parameters()) +
+                            [brain.cortex.microcircuit.W_in])
+        print(f"Stage-B: Training BG + Thalamus + Cerebellum + PredHead ({sum(p.numel() for p in trainable_params)} params)")
 
     optimizer = optim.Adam(trainable_params, lr=config['lr'], eps=1e-5)
     best_sr = 0.0
@@ -123,7 +181,8 @@ def train_vectorized():
                 prev_rew_buf[t] = prev_reward.squeeze(-1).cpu()
                 prev_done_buf[t] = prev_done.squeeze(-1).cpu()
                 
-                action, log_prob, value, _, _, _ = brain.step(Obs(x=obs_t), prev_reward, prev_done, learn=False)
+                # Rollout with online learning enabled (plasticity + hippocampal encoding)
+                action, log_prob, value, _, _, _ = brain.step(Obs(x=obs_t), prev_reward, prev_done, learn=True)
                 
                 obs_np, reward, done, _ = envs.step(action)
                 
@@ -171,6 +230,7 @@ def train_vectorized():
         # Diagnostics accumulators
         total_kl, total_clipfrac, total_entropy, total_batches = 0.0, 0.0, 0.0, 0
         total_logit_scale, total_prob_max = 0.0, 0.0
+        total_da_std = 0.0
         early_stop_epoch = config['ppo_epochs']
         
         # Recurrent PPO: minibatch_size = envs_per_batch * T
@@ -241,17 +301,36 @@ def train_vectorized():
                         gated_x = brain.thalamus.gate(obs_t, brain._prev_selection, brain._prev_mods)
                         z_t, pred_t, new_cortex_state = brain.cortex.forward(gated_x, brain.state.cortex_state, update_trace=False)
                         
+                        # Homeostatic Regularization (Priority 2 Stability)
+                        # Penalize neurons that are saturated (0 or near clamp limit 50)
+                        # Target mean activity ~ 1.0
+                        firing_reg = torch.mean(z_t**2) * 0.001
+                        policy_losses.append(firing_reg)
+                        
+                        # Priority 5 & 7: Retrieval and Correction for PPO update consistency
+                        retrieved = brain.hippocampus.retrieve(z_t)
+                        correction, _ = brain.cerebellum.forward(z_t, obs_t)
+                        
                         # Priority 4: Predictive World Model Loss
                         if t < T - 1:
                             wm_loss_t = torch.mean((pred_t - obs_seq[t+1]) ** 2)
                             policy_losses.append(wm_loss_t * 0.1) 
                         
-                        logits = brain.bg.policy_head(z_t)
-                        # ...
-                        dist = torch.distributions.Categorical(logits=logits.float())
-                        new_logp = dist.log_prob(act_seq[t])
-                        entropy = dist.entropy()
-                        new_val = brain.bg.value_head(z_t).squeeze(-1).float()  # FP32 for value loss
+                        selection, da, _, new_logp, value, entropy = brain.bg.step(
+                            z_t, 
+                            torch.zeros(M, 1, device=device), # DA signal computed internally from value
+                            None, 
+                            torch.zeros(M, 1, dtype=torch.bool, device=device), # Done masking handled manually above
+                            brain.state.bg_state['prev_value'],
+                            memory_context=retrieved,
+                            cerebellum_correction=correction,
+                            action_to_eval=act_seq[t]
+                        )
+                        
+                        # Collect DA stats for stability monitoring
+                        total_da_std += da.std().item()
+                        
+                        new_val = value.squeeze(-1).float()
                         
                         # Update brain state for next step (detached)
                         with torch.no_grad():
@@ -287,8 +366,8 @@ def train_vectorized():
                         with torch.no_grad():
                             kls.append((-log_ratio).mean().item())
                             clipfracs.append(((ratio - 1.0).abs() > config['eps_clip']).float().mean().item())
-                            logit_scales.append(logits.abs().mean().item())
-                            prob_maxes.append(dist.probs.max(dim=1).values.mean().item())
+                            # logit_scales.append(logits.abs().mean().item()) # Removed as logits are internal to BG.step
+                            prob_maxes.append(torch.exp(new_logp).max(dim=-1).values.mean().item())
                 
                 # Aggregate losses over sequence
                 policy_loss = torch.stack(policy_losses).mean()
@@ -336,6 +415,7 @@ def train_vectorized():
         avg_entropy = total_entropy / max(total_batches, 1)
         avg_logit = total_logit_scale / max(total_batches, 1)
         avg_pmax = total_prob_max / max(total_batches, 1)
+        avg_da_std = total_da_std / max(total_batches, 1)
         
         # Explained variance: how well value predicts returns
         with torch.no_grad():
@@ -349,22 +429,24 @@ def train_vectorized():
         fps = (config['num_envs'] * config['num_steps']) / (time.time() - start_time)
 
         if (update + 1) % config['eval_every'] == 0:
-            # Save training state before eval
+            # 1) Log stability metrics using CURRENT training state before eval/reset
+            stage_str = "A" if stage_a_freeze else "B"
+            is_unstable = log_stability_metrics(brain, update+1, avg_kl, avg_entropy, ev, fps, stage_str, avg_da_std)
+            
+            if is_unstable:
+                for param_group in optimizer.param_groups:
+                    param_group['lr'] *= 0.5
+                print(f"  ** Emergency Brake: Reducing LR to {optimizer.param_groups[0]['lr']:.2e} **")
+
+            # 2) Save training state for evaluation
             train_state = (brain.state, brain._prev_selection, brain._prev_mods, brain._prev_pred)
             sr = eval_vectorized(brain, eval_env, device, config['eval_episodes'], 150)
             # Restore training state after eval
             brain.state, brain._prev_selection, brain._prev_mods, brain._prev_pred = train_state
             
-            # Log with PPO diagnostics
-            stage_str = "A" if stage_a_freeze else "B"
-            print(f"[{stage_str}] Upd {update+1:4d} | SR {sr:.3f} | KL {avg_kl:.4f} | Clip {avg_clipfrac:.2f} | Ent {avg_entropy:.2f} | Logit {avg_logit:.2f} | Pmax {avg_pmax:.2f} | EV {ev:.2f} | Ep {early_stop_epoch} | FPS {fps:.0f}")
+            print(f"  -> Eval SR: {sr:.3f}")
             
-            # Track best EV for Stage-A transition
-            if ev > best_ev:
-                best_ev = ev
-                if stage_a_freeze and ev > ev_threshold:
-                    print(f"  ** EV {ev:.2f} > {ev_threshold} - Consider transitioning to Stage-B (unfreeze more) **")
-            
+            # Track best SR
             if sr > best_sr:
                 best_sr = sr
                 torch.save(brain.state_dict(), "brain_vectorized_best.pth")

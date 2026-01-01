@@ -16,7 +16,7 @@ class BasalGanglia(nn.Module):
         self.memory_head = nn.Linear(d_z, d_act)
         self.gamma = 0.99
 
-    def step(self, z_t, reward, ctx, done, prev_value=None, memory_context=None, cerebellum_correction=None):
+    def step(self, z_t, reward, ctx, done, prev_value=None, memory_context=None, cerebellum_correction=None, action_to_eval=None):
         """
         BG.step(z_t, reward_t, ctx_t, done_t) -> (selection, DA_signal, action, action_log_prob, value, entropy)
         """
@@ -41,7 +41,12 @@ class BasalGanglia(nn.Module):
         logits = torch.clamp(logits, min=-20, max=20) # Prevent NaN explosion
         
         dist = torch.distributions.Categorical(logits=logits)
-        action = dist.sample()
+        
+        if action_to_eval is not None:
+            action = action_to_eval
+        else:
+            action = dist.sample()
+            
         log_prob = dist.log_prob(action)
         entropy = dist.entropy()
         
