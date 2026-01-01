@@ -12,11 +12,11 @@ from digital_brain.envs.vector_env import VectorPOMDP
 def train_vectorized():
     config = {
         'd_obs': 9, 'd_z': 512, 'd_sel': 64, 'd_act': 4, 
-        'lr': 2.5e-4,
-        'total_steps': 100000000,
+        'lr': 3.5e-4,  # Middle ground: 2.5e-4 too weak, 5e-4 too strong
+        'total_steps': 200000000,
         'num_envs': 4096,
         'num_steps': 128,
-        'ppo_epochs': 4,
+        'ppo_epochs': 8,
         'mini_batch_size': 32768,
         'eps_clip': 0.2,
         'gamma': 0.99,
@@ -51,8 +51,35 @@ def train_vectorized():
         except Exception as e:
             print(f"Starting fresh: {e}")
 
-    optimizer = optim.Adam(brain.parameters(), lr=config['lr'], eps=1e-5)
+    # Stage-B: Train BG + Thalamus (Cortex still frozen for stability)
+    # Stage-A (only BG) hit ceiling - need more capacity
+    stage_a_freeze = False  # Changed to Stage-B
+    ev_threshold = 0.2
+    
+    if stage_a_freeze:
+        # Stage-A: Only BG policy/value
+        for p in brain.parameters():
+            p.requires_grad = False
+        for p in brain.bg.policy_head.parameters():
+            p.requires_grad = True
+        for p in brain.bg.value_head.parameters():
+            p.requires_grad = True
+        trainable_params = list(brain.bg.policy_head.parameters()) + list(brain.bg.value_head.parameters())
+        print(f"Stage-A: Frozen all except BG policy/value ({sum(p.numel() for p in trainable_params)} params)")
+    else:
+        # Stage-B: BG + Thalamus (Cortex frozen)
+        for p in brain.parameters():
+            p.requires_grad = False
+        for p in brain.bg.parameters():
+            p.requires_grad = True
+        for p in brain.thalamus.parameters():
+            p.requires_grad = True
+        trainable_params = list(brain.bg.parameters()) + list(brain.thalamus.parameters())
+        print(f"Stage-B: Training BG + Thalamus ({sum(p.numel() for p in trainable_params)} params)")
+
+    optimizer = optim.Adam(trainable_params, lr=config['lr'], eps=1e-5)
     best_sr = 0.0
+    best_ev = 0.0
 
     obs_np = envs.reset()
     brain.reset(config['num_envs'], device=device)
@@ -276,7 +303,15 @@ def train_vectorized():
             brain.state, brain._prev_selection, brain._prev_mods, brain._prev_pred = train_state
             
             # Log with PPO diagnostics
-            print(f"Upd {update+1:4d} | SR {sr:.3f} | KL {avg_kl:.4f} | Clip {avg_clipfrac:.2f} | Ent {avg_entropy:.2f} | Logit {avg_logit:.2f} | Pmax {avg_pmax:.2f} | EV {ev:.2f} | Ep {early_stop_epoch} | FPS {fps:.0f}")
+            stage_str = "A" if stage_a_freeze else "B"
+            print(f"[{stage_str}] Upd {update+1:4d} | SR {sr:.3f} | KL {avg_kl:.4f} | Clip {avg_clipfrac:.2f} | Ent {avg_entropy:.2f} | Logit {avg_logit:.2f} | Pmax {avg_pmax:.2f} | EV {ev:.2f} | Ep {early_stop_epoch} | FPS {fps:.0f}")
+            
+            # Track best EV for Stage-A transition
+            if ev > best_ev:
+                best_ev = ev
+                if stage_a_freeze and ev > ev_threshold:
+                    print(f"  ** EV {ev:.2f} > {ev_threshold} - Consider transitioning to Stage-B (unfreeze more) **")
+            
             if sr > best_sr:
                 best_sr = sr
                 torch.save(brain.state_dict(), "brain_vectorized_best.pth")
