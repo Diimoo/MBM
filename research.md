@@ -52,15 +52,15 @@ flowchart LR
 
 **Formeln:**
 
-![Gate](assets/formulas/gate.svg)
+![Gate](assets/formulas/gate_darkmode_v1.svg)
 
-![Gain](assets/formulas/gain.svg)
+![Gain](assets/formulas/gain_darkmode_v1.svg)
 
-![Gated Input](assets/formulas/gated_input.svg)
+![Gated Input](assets/formulas/gated_input_darkmode_v1.svg)
 
-![TD-RPE](assets/formulas/tdrpe.svg)
+![TD-RPE](assets/formulas/tdrpe_darkmode_v1.svg)
 
-![Novelty](assets/formulas/novelty.svg)
+![Novelty](assets/formulas/novelty_darkmode_v1.svg)
 
 
 ## 3. Module-Level Description
