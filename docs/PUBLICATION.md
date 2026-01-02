@@ -703,7 +703,7 @@ Post on:
 
 **Goals:**
 - Scale to 50K neurons (requires multi-GPU or A100 80GB)
-- Test on Atari (at least one game)
+- Test on Atari
 - Implement hierarchical cortex
 
 **Hierarchical Cortex Sketch:**
