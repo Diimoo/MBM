@@ -5,10 +5,11 @@ import numpy as np
 from .plasticity import SynapticPlasticity
 
 class SparseCorticalMicrocircuit(nn.Module):
-    def __init__(self, d_in, d_z, dt=0.1, sparsity=0.01, locality_radius=None):
+    def __init__(self, d_in, d_z, dt=0.1, sparsity=0.01, locality_radius=None, use_norm=True):
         super().__init__()
         self.d_z = d_z
         self.dt = dt
+        self.use_norm = use_norm
         
         # Generate sparse connectivity
         if locality_radius is not None:
@@ -21,6 +22,10 @@ class SparseCorticalMicrocircuit(nn.Module):
         # Store as COO sparse tensor components
         self.register_buffer('W_ee_indices', indices)
         self.W_ee_values = nn.Parameter(values)
+        
+        # Normalization
+        if use_norm:
+            self.norm = nn.LayerNorm(d_z)
         
         # Dense weights (small or non-recurrent, keep dense for performance at this scale)
         self.W_in = nn.Parameter(torch.randn(d_in, d_z) * 0.1)
@@ -115,7 +120,11 @@ class SparseCorticalMicrocircuit(nn.Module):
         inh_drive = i_act @ self.W_ie
         
         # Dynamics
-        de = (-e_act + F.relu(ext_drive + rec_drive - inh_drive)) / self.tau_e
+        total_drive = ext_drive + rec_drive - inh_drive
+        if self.use_norm:
+            total_drive = self.norm(total_drive)
+            
+        de = (-e_act + F.relu(total_drive)) / self.tau_e
         di = (-i_act + F.relu(e_act @ self.W_ei)) / self.tau_i
         
         e_act_new = e_act + self.dt * de

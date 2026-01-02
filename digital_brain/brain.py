@@ -29,12 +29,15 @@ class DigitalBrain(nn.Module):
             config['d_act'], 
             sparse=config.get('sparse_cortex', False),
             sparsity=config.get('sparsity', 0.01),
-            locality_radius=config.get('locality_radius', None)
+            locality_radius=config.get('locality_radius', None),
+            layer_sizes=config.get('layer_sizes', None),
+            use_norm=config.get('use_norm', True),
+            use_residual=config.get('use_residual', True)
         )
         self.thalamus = Thalamus(config['d_obs'], config['d_sel'])
-        self.hippocampus = Hippocampus(config['d_z'])
-        self.bg = BasalGanglia(config['d_z'], config['d_sel'], config['d_act'])
-        self.cerebellum = Cerebellum(config['d_z'], config['d_obs'], config['d_act'])
+        self.hippocampus = Hippocampus(self.cortex.d_z)
+        self.bg = BasalGanglia(self.cortex.d_z, config['d_sel'], config['d_act'])
+        self.cerebellum = Cerebellum(self.cortex.d_z, config['d_obs'], config['d_act'])
         self.neuromods = Neuromodulators()
 
         self.state: BrainState | None = None
@@ -50,17 +53,31 @@ class DigitalBrain(nn.Module):
         
         z0 = torch.zeros(batch_size, self.config['d_z'], device=device)
         
-        # Determine trace shape based on whether cortex is sparse
-        if hasattr(self.cortex.microcircuit, 'W_ee_values'):
-            # Sparse: trace matches number of connections
-            trace0 = torch.zeros(self.cortex.microcircuit.W_ee_values.shape[0], device=device)
+        # Helper to initialize a single microcircuit state
+        def init_layer_state(mc, d_in, d_z):
+            e0 = torch.zeros(batch_size, d_z, device=device)
+            i0 = torch.zeros(batch_size, d_z, device=device)
+            if hasattr(mc, 'W_ee_values'):
+                t0 = torch.zeros(mc.W_ee_values.shape[0], device=device)
+            else:
+                t0 = torch.zeros(d_z, d_z, device=device)
+            return (e0, i0, t0)
+
+        # Determine cortex state structure
+        from .modules.cortex import HierarchicalCortex
+        if isinstance(self.cortex.microcircuit, HierarchicalCortex):
+            cortex_state = []
+            curr_in = self.config['d_obs']
+            for i, layer in enumerate(self.cortex.microcircuit.layers):
+                sz = layer.d_z
+                cortex_state.append(init_layer_state(layer, curr_in, sz))
+                curr_in = sz
         else:
-            # Dense: trace is (d_z, d_z)
-            trace0 = torch.zeros(self.config['d_z'], self.config['d_z'], device=device)
+            cortex_state = init_layer_state(self.cortex.microcircuit, self.config['d_obs'], self.config['d_z'])
             
         self.state = BrainState(
             z=z0,
-            cortex_state=(z0, z0, trace0),  
+            cortex_state=cortex_state,  
             bg_state={'prev_value': torch.zeros(batch_size, 1, device=device)},
             hip_state=None,
             cerebellum_state=None
@@ -102,13 +119,20 @@ class DigitalBrain(nn.Module):
                 # Zero out internal states for finished envs
                 self.state.z = self.state.z * (1 - done_mask.float())
                 
-                # cortex_state: (e_act, i_act, trace_ee)
-                e_act, i_act, trace_ee = self.state.cortex_state
-                e_act = e_act * (1 - done_mask.float())
-                i_act = i_act * (1 - done_mask.float())
-                # trace_ee is shared across batch in SynapticPlasticity.update_trace (averages over batch)
-                # so we don't necessarily reset the global trace, but the local activities
-                self.state.cortex_state = (e_act, i_act, trace_ee)
+                # cortex_state handling (single layer or hierarchical)
+                if isinstance(self.state.cortex_state, list):
+                    new_c_state = []
+                    for layer_state in self.state.cortex_state:
+                        e_act, i_act, trace_ee = layer_state
+                        e_act = e_act * (1 - done_mask.float())
+                        i_act = i_act * (1 - done_mask.float())
+                        new_c_state.append((e_act, i_act, trace_ee))
+                    self.state.cortex_state = new_c_state
+                else:
+                    e_act, i_act, trace_ee = self.state.cortex_state
+                    e_act = e_act * (1 - done_mask.float())
+                    i_act = i_act * (1 - done_mask.float())
+                    self.state.cortex_state = (e_act, i_act, trace_ee)
                 
                 self.state.bg_state['prev_value'] = self.state.bg_state['prev_value'] * (1 - done_mask.float())
                 self._prev_selection = self._prev_selection * (1 - done_mask.float())
@@ -174,8 +198,11 @@ class DigitalBrain(nn.Module):
                 if torch.any(novelty > 0.6) or torch.any(reward_b != 0):
                     self.hippocampus.encode(z_t)
         self.state.z = z_t.detach()
-        # Detach each element of the tuple state (E, I)
-        self.state.cortex_state = tuple(s.detach() for s in new_cortex_state)
+        # Detach each element of the tuple state (E, I) - handles list of states too
+        if isinstance(new_cortex_state, list):
+            self.state.cortex_state = [tuple(s.detach() for s in ls) for ls in new_cortex_state]
+        else:
+            self.state.cortex_state = tuple(s.detach() for s in new_cortex_state)
         self.state.bg_state['prev_value'] = value.detach()
 
         self._prev_selection = selection.detach()

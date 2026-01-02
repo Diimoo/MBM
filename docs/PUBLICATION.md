@@ -369,17 +369,17 @@ def figure_1_ablation_study():
 
 
 def figure_2_continual_learning():
-    """Performance matrix showing backward transfer."""
+    """Performance matrix showing minimal forgetting and no statistically significant backward transfer."""
     
     # Data: rows = models, cols = tasks (after training all)
     # Entry (i,j) = performance of model i on task j after sequential training
     
     mbm_performance = np.array([
-        [0.85, 0.78, 0.71],  # MBM: minimal forgetting + backward transfer
+        [0.85, 0.78, 0.71],  # MBM: minimal forgetting, no statistically significant backward transfer
     ])
     
     ppo_performance = np.array([
-        [0.23, 0.19, 0.74],  # PPO: catastrophic forgetting
+        [0.23, 0.19, 0.74],  # PPO: catastrophic forgetting, but significant improvement on simpler tasks after training on complex ones
     ])
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))

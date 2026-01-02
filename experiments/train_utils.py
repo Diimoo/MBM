@@ -10,11 +10,37 @@ def evaluate_vectorized(model, env, device, episodes=64, max_steps=150):
     success = 0
     completed = 0
     
-    # Save training state if possible (only for MBM)
+        # Save training state if possible (only for MBM)
     orig_state = getattr(model, 'state', None)
     orig_selection = getattr(model, '_prev_selection', None)
     orig_mods = getattr(model, '_prev_mods', None)
     orig_pred = getattr(model, '_prev_pred', None)
+    
+    # Deep copy state if it's a list (Hierarchical) or clone tensors
+    def copy_state(s):
+        if s is None: return None
+        if isinstance(s, list):
+            return [copy_state(x) for x in s]
+        if isinstance(s, tuple):
+            return tuple(copy_state(x) for x in s)
+        if isinstance(s, torch.Tensor):
+            return s.clone()
+        if hasattr(s, 'clone'): # For ModSignals
+            return s.clone()
+        return s
+
+    # Save original state components
+    saved_state = None
+    if orig_state is not None:
+        saved_state = {
+            'z': copy_state(orig_state.z),
+            'cortex_state': copy_state(orig_state.cortex_state),
+            'bg_state': {k: copy_state(v) for k, v in orig_state.bg_state.items()}
+        }
+    
+    saved_selection = copy_state(orig_selection)
+    saved_mods = copy_state(orig_mods)
+    saved_pred = copy_state(orig_pred)
     
     while completed < episodes:
         obs_t = env.reset()
@@ -51,14 +77,18 @@ def evaluate_vectorized(model, env, device, episodes=64, max_steps=150):
         completed += num_envs
         
     # Restore original state
-    if orig_state is not None:
-        model.state = orig_state
-    if orig_selection is not None:
-        model._prev_selection = orig_selection
-    if orig_mods is not None:
-        model._prev_mods = orig_mods
-    if orig_pred is not None:
-        model._prev_pred = orig_pred
+    if saved_state is not None:
+        model.state.z = saved_state['z']
+        model.state.cortex_state = saved_state['cortex_state']
+        for k, v in saved_state['bg_state'].items():
+            model.state.bg_state[k] = v
+            
+    if saved_selection is not None:
+        model._prev_selection = saved_selection
+    if saved_mods is not None:
+        model._prev_mods = saved_mods
+    if saved_pred is not None:
+        model._prev_pred = saved_pred
         
     return success / completed
 
@@ -163,10 +193,22 @@ def train_mbm(env, brain, optimizer, config, device, verbose=True, eval_env=None
                             if done_mask.any():
                                 with torch.no_grad():
                                     brain.state.z = brain.state.z * (~done_mask).float()
-                                    e_act, i_act, trace_ee = brain.state.cortex_state
-                                    e_act = e_act * (~done_mask).float()
-                                    i_act = i_act * (~done_mask).float()
-                                    brain.state.cortex_state = (e_act, i_act, trace_ee)
+                                    
+                                    # Handle hierarchical or single-layer cortex state masking
+                                    if isinstance(brain.state.cortex_state, list):
+                                        new_c_state = []
+                                        for layer_state in brain.state.cortex_state:
+                                            e_act, i_act, trace_ee = layer_state
+                                            e_act = e_act * (~done_mask).float()
+                                            i_act = i_act * (~done_mask).float()
+                                            new_c_state.append((e_act, i_act, trace_ee))
+                                        brain.state.cortex_state = new_c_state
+                                    else:
+                                        e_act, i_act, trace_ee = brain.state.cortex_state
+                                        e_act = e_act * (~done_mask).float()
+                                        i_act = i_act * (~done_mask).float()
+                                        brain.state.cortex_state = (e_act, i_act, trace_ee)
+                                        
                                     brain.state.bg_state['prev_value'] = brain.state.bg_state['prev_value'] * (~done_mask).float()
                                     brain._prev_selection = brain._prev_selection * (~done_mask).float()
                                     brain._prev_pred = brain._prev_pred * (~done_mask).float()
@@ -206,7 +248,10 @@ def train_mbm(env, brain, optimizer, config, device, verbose=True, eval_env=None
                         
                         with torch.no_grad():
                             brain.state.z = z_t.detach()
-                            brain.state.cortex_state = tuple(s.detach() for s in new_cortex_state)
+                            if isinstance(new_cortex_state, list):
+                                brain.state.cortex_state = [tuple(s.detach() for s in ls) for ls in new_cortex_state]
+                            else:
+                                brain.state.cortex_state = tuple(s.detach() for s in new_cortex_state)
                             brain.state.bg_state['prev_value'] = new_val.unsqueeze(-1).detach()
                             brain._prev_pred = pred_t.detach()
                         
@@ -270,10 +315,49 @@ def train_mbm(env, brain, optimizer, config, device, verbose=True, eval_env=None
     
     return history
 
-def train_ppo_baseline(env, model, optimizer, config, device, verbose=True, eval_env=None):
-    """Simplified standard PPO training loop for baseline comparison."""
+def compute_fisher(model, env, device, num_samples=1024):
+    """Compute diagonal Fisher Information Matrix for EWC."""
+    model.eval()
+    fisher = {}
+    params_old = {}
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            fisher[name] = torch.zeros_like(param.data)
+            params_old[name] = param.data.clone()
+    
+    # Collect samples to estimate Fisher
+    num_envs = env.num_envs
+    steps = max(1, num_samples // num_envs)
+    
+    obs = env.reset()
+    for _ in range(steps):
+        logits, _ = model(obs)
+        dist = torch.distributions.Categorical(logits=logits)
+        
+        # We sample an action and compute gradient of log-prob
+        action = dist.sample()
+        log_prob = dist.log_prob(action).mean()
+        
+        model.zero_grad()
+        log_prob.backward()
+        
+        for name, param in model.named_parameters():
+            if param.requires_grad and param.grad is not None:
+                fisher[name] += (param.grad.data ** 2) / steps
+        
+        obs, _, _, _ = env.step(action)
+        
+    model.train()
+    return fisher, params_old
+
+def train_ppo_baseline(env, model, optimizer, config, device, verbose=True, eval_env=None, ewc_data=None):
+    """Simplified standard PPO training loop for baseline comparison, with optional EWC."""
     T, E = config['num_steps'], config['num_envs']
     obs_t = env.reset()
+    
+    # EWC setup
+    ewc_lambda = config.get('ewc_lambda', 0.0)
+    has_ewc = ewc_data is not None and ewc_lambda > 0
     
     # History for plotting
     history = {
@@ -340,6 +424,14 @@ def train_ppo_baseline(env, model, optimizer, config, device, verbose=True, eval
             val_loss = 0.5 * ((values - ret_buf.view(-1))**2).mean()
             
             loss = policy_loss + config['value_coef'] * val_loss - config['entropy_coef'] * entropy
+            
+            # 4) EWC Loss
+            if has_ewc:
+                ewc_loss = 0
+                for name, param in model.named_parameters():
+                    if name in ewc_data['fisher']:
+                        ewc_loss += (ewc_data['fisher'][name] * (param - ewc_data['params'][name])**2).sum()
+                loss += ewc_lambda * ewc_loss
             
             if torch.isnan(loss):
                 optimizer.zero_grad()
