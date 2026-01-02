@@ -38,8 +38,11 @@ def run_continual_learning_exp():
     # Task A: Gridworld 5x5
     env_a = TorchVectorPOMDP(num_envs=config['num_envs'], size=5, device=device)
     
-    # Task B: Gridworld 7x7 (Transfer/Continual task)
+    # Task B: Gridworld 7x7
     env_b = TorchVectorPOMDP(num_envs=config['num_envs'], size=7, device=device)
+    
+    # Task C: Gridworld 10x10
+    env_c = TorchVectorPOMDP(num_envs=config['num_envs'], size=10, device=device)
     
     print("--- Phase 1: Train on Task A (Gridworld 5x5) ---")
     sr_a_0 = eval_on_task(brain, 'gridworld_5x5', device)
@@ -48,21 +51,44 @@ def run_continual_learning_exp():
     # Actual training on A
     train_on_task(brain, env_a, optimizer, 100, device, 'Gridworld 5x5', config)
     
-    sr_a_mid = eval_on_task(brain, 'gridworld_5x5', device)
-    sr_b_mid = eval_on_task(brain, 'gridworld_7x7', device)
-    print(f"After Phase 1 - SR A: {sr_a_mid:.3f}, SR B: {sr_b_mid:.3f}")
+    sr_a_1 = eval_on_task(brain, 'gridworld_5x5', device)
+    sr_b_1 = eval_on_task(brain, 'gridworld_7x7', device)
+    sr_c_1 = eval_on_task(brain, 'gridworld_10x10', device)
+    print(f"After Phase 1 - SR A: {sr_a_1:.3f}, SR B: {sr_b_1:.3f}, SR C: {sr_c_1:.3f}")
     
     print("\n--- Phase 2: Train on Task B (Gridworld 7x7) ---")
     # Actual training on B
     train_on_task(brain, env_b, optimizer, 100, device, 'Gridworld 7x7', config)
     
-    # Final eval to check forgetting
-    sr_a_final = eval_on_task(brain, 'gridworld_5x5', device)
-    sr_b_final = eval_on_task(brain, 'gridworld_7x7', device)
+    sr_a_2 = eval_on_task(brain, 'gridworld_5x5', device)
+    sr_b_2 = eval_on_task(brain, 'gridworld_7x7', device)
+    sr_c_2 = eval_on_task(brain, 'gridworld_10x10', device)
+    print(f"After Phase 2 - SR A: {sr_a_2:.3f}, SR B: {sr_b_2:.3f}, SR C: {sr_c_2:.3f}")
+
+    print("\n--- Phase 3: Train on Task C (Gridworld 10x10) ---")
+    # Actual training on C
+    train_on_task(brain, env_c, optimizer, 100, device, 'Gridworld 10x10', config)
     
-    print("\n--- Continual Learning Results ---")
-    print(f"Task A (5x5) SR: {sr_a_mid:.3f} -> {sr_a_final:.3f} (Forgetting: {sr_a_mid - sr_a_final:.3f})")
-    print(f"Task B (7x7) SR: {sr_b_mid:.3f} -> {sr_b_final:.3f}")
+    sr_a_3 = eval_on_task(brain, 'gridworld_5x5', device)
+    sr_b_3 = eval_on_task(brain, 'gridworld_7x7', device)
+    sr_c_3 = eval_on_task(brain, 'gridworld_10x10', device)
+    print(f"After Phase 3 - SR A: {sr_a_3:.3f}, SR B: {sr_b_3:.3f}, SR C: {sr_c_3:.3f}")
+    
+    print("\n--- Continual Learning Summary Matrix ---")
+    matrix = np.array([
+        [sr_a_1, sr_b_1, sr_c_1],
+        [sr_a_2, sr_b_2, sr_c_2],
+        [sr_a_3, sr_b_3, sr_c_3]
+    ])
+    print(matrix)
+    
+    results = {
+        'task_names': ['5x5', '7x7', '10x10'],
+        'matrix': matrix.tolist()
+    }
+    import json
+    with open("experiments/continual_learning_results.json", "w") as f:
+        json.dump(results, f)
 
 if __name__ == "__main__":
     run_continual_learning_exp()

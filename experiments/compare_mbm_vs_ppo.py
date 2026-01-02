@@ -19,6 +19,7 @@ from experiments.train_utils import train_mbm, train_ppo_baseline
 class PPOBaseline(nn.Module):
     def __init__(self, d_obs, d_h, d_act):
         super().__init__()
+        self.config = {'d_obs': d_obs, 'd_h': d_h, 'd_act': d_act}
         self.feature_extractor = nn.Sequential(
             nn.Linear(d_obs, d_h),
             nn.ReLU(),

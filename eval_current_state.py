@@ -9,7 +9,7 @@ from digital_brain.envs.torch_vector_env import TorchVectorPOMDP
 from digital_brain.envs.t_maze import TorchVectorTMaze
 from digital_brain.envs.radial_arm_maze import TorchVectorRadialArmMaze
 
-def eval_on_task(brain, task_name, device, episodes=64, max_steps=150):
+def eval_on_task(model, task_name, device, episodes=64, max_steps=150):
     if task_name == 'gridworld_5x5':
         env = TorchVectorPOMDP(num_envs=64, size=5, device=device)
     elif task_name == 'gridworld_7x7':
@@ -28,17 +28,19 @@ def eval_on_task(brain, task_name, device, episodes=64, max_steps=150):
     completed = 0
     
     # Expected observation size for the brain
-    d_obs_expected = brain.config['d_obs']
+    d_obs_expected = model.config['d_obs']
     
-    # Save brain state
-    orig_state = brain.state
-    orig_prev_sel = brain._prev_selection
-    orig_prev_mods = brain._prev_mods
-    orig_prev_pred = brain._prev_pred
+    # Save model recurrent state if it exists
+    orig_state = getattr(model, 'state', None)
+    orig_prev_sel = getattr(model, '_prev_selection', None)
+    orig_prev_mods = getattr(model, '_prev_mods', None)
+    orig_prev_pred = getattr(model, '_prev_pred', None)
 
     while completed < episodes:
         obs_t = env.reset()
-        brain.reset(num_envs, device=device)
+        if hasattr(model, 'reset'):
+            model.reset(num_envs, device=device)
+            
         prev_reward = torch.zeros(num_envs, 1, device=device)
         prev_done = torch.zeros(num_envs, 1, dtype=torch.bool, device=device)
         
@@ -55,9 +57,20 @@ def eval_on_task(brain, task_name, device, episodes=64, max_steps=150):
             else:
                 obs_padded = obs_t
                 
-            obs = Obs(x=obs_padded)
             with torch.no_grad():
-                action, _, _, _, _, _ = brain.act(obs, prev_reward, prev_done)
+                if hasattr(model, 'act'):
+                    # Handle both MBM.act and PPOBaseline.act
+                    if hasattr(model, 'step'): # MBM
+                        obs = Obs(x=obs_padded)
+                        out = model.act(obs, prev_reward, prev_done)
+                        action = out[0]
+                    else: # PPOBaseline
+                        out = model.act(obs_padded)
+                        action = out[0]
+                else:
+                    logits, _ = model(obs_padded)
+                    action = torch.argmax(logits, dim=-1)
+                    
             obs_t, reward, done, _ = env.step(action)
             
             ep_returns += reward * (~ep_done).float()
@@ -72,11 +85,15 @@ def eval_on_task(brain, task_name, device, episodes=64, max_steps=150):
         success += (ep_returns > 5.0).sum().item()
         completed += num_envs
     
-    # Restore brain state
-    brain.state = orig_state
-    brain._prev_selection = orig_prev_sel
-    brain._prev_mods = orig_prev_mods
-    brain._prev_pred = orig_prev_pred
+    # Restore model state
+    if orig_state is not None:
+        model.state = orig_state
+    if orig_prev_sel is not None:
+        model._prev_selection = orig_prev_sel
+    if orig_prev_mods is not None:
+        model._prev_mods = orig_prev_mods
+    if orig_prev_pred is not None:
+        model._prev_pred = orig_prev_pred
     
     return success / completed
 

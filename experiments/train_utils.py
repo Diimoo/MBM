@@ -12,6 +12,9 @@ def evaluate_vectorized(model, env, device, episodes=64, max_steps=150):
     
     # Save training state if possible (only for MBM)
     orig_state = getattr(model, 'state', None)
+    orig_selection = getattr(model, '_prev_selection', None)
+    orig_mods = getattr(model, '_prev_mods', None)
+    orig_pred = getattr(model, '_prev_pred', None)
     
     while completed < episodes:
         obs_t = env.reset()
@@ -27,9 +30,6 @@ def evaluate_vectorized(model, env, device, episodes=64, max_steps=150):
         for step in range(max_steps):
             with torch.no_grad():
                 if hasattr(model, 'act'):
-                    # MBM brain or PPO baseline
-                    # MBM.act returns (action, log_prob, value, state, log, entropy)
-                    # PPO.act returns (action, log_prob, value)
                     out = model.act(Obs(x=obs_t) if hasattr(model, 'step') else obs_t, prev_reward, prev_done) if hasattr(model, 'step') else model.act(obs_t)
                     action = out[0]
                 else:
@@ -50,8 +50,15 @@ def evaluate_vectorized(model, env, device, episodes=64, max_steps=150):
         success += (ep_returns > 5.0).sum().item()
         completed += num_envs
         
+    # Restore original state
     if orig_state is not None:
         model.state = orig_state
+    if orig_selection is not None:
+        model._prev_selection = orig_selection
+    if orig_mods is not None:
+        model._prev_mods = orig_mods
+    if orig_pred is not None:
+        model._prev_pred = orig_pred
         
     return success / completed
 
@@ -63,6 +70,13 @@ def train_mbm(env, brain, optimizer, config, device, verbose=True, eval_env=None
     
     prev_reward = torch.zeros(E, 1, device=device)
     prev_done = torch.zeros(E, 1, dtype=torch.bool, device=device)
+
+    # History for plotting
+    history = {
+        'updates': [],
+        'loss': [],
+        'sr': []
+    }
 
     # Buffers (CPU to save memory)
     obs_buf = torch.zeros((T, E, config['d_obs']), dtype=torch.float32)
@@ -241,17 +255,33 @@ def train_mbm(env, brain, optimizer, config, device, verbose=True, eval_env=None
         
         if (update + 1) % 10 == 0:
             sr_str = ""
+            sr = None
             if eval_env is not None:
                 sr = evaluate_vectorized(brain, eval_env, device)
                 sr_str = f" | SR: {sr:.3f}"
+            
+            history['updates'].append(update + 1)
+            history['loss'].append(loss.item())
+            if sr is not None:
+                history['sr'].append(sr)
+                
             if verbose:
                 print(f"Update {update+1}/{config['total_updates']} | Loss: {loss.item():.4f}{sr_str}")
+    
+    return history
 
 def train_ppo_baseline(env, model, optimizer, config, device, verbose=True, eval_env=None):
     """Simplified standard PPO training loop for baseline comparison."""
     T, E = config['num_steps'], config['num_envs']
     obs_t = env.reset()
     
+    # History for plotting
+    history = {
+        'updates': [],
+        'loss': [],
+        'sr': []
+    }
+
     # Buffers
     obs_buf = torch.zeros((T, E, config['d_obs']), device=device)
     act_buf = torch.zeros((T, E), dtype=torch.long, device=device)
@@ -322,8 +352,17 @@ def train_ppo_baseline(env, model, optimizer, config, device, verbose=True, eval
 
         if (update + 1) % 10 == 0:
             sr_str = ""
+            sr = None
             if eval_env is not None:
                 sr = evaluate_vectorized(model, eval_env, device)
                 sr_str = f" | SR: {sr:.3f}"
+            
+            history['updates'].append(update + 1)
+            history['loss'].append(loss.item())
+            if sr is not None:
+                history['sr'].append(sr)
+                
             if verbose:
                 print(f"Update {update+1}/{config['total_updates']} | Loss: {loss.item():.4f}{sr_str}")
+                
+    return history
