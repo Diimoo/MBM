@@ -41,25 +41,27 @@ class PPOBaseline(nn.Module):
         action = dist.sample()
         return action, dist.log_prob(action), value
 
-def get_env(task_name, num_envs, device):
+def get_env(task_name, num_envs, device, seed=None):
     if task_name == 'gridworld_5x5':
-        return TorchVectorPOMDP(num_envs=num_envs, size=5, device=device), 9, 4
+        return TorchVectorPOMDP(num_envs=num_envs, size=5, device=device, seed=seed), 9, 4
     elif task_name == 'gridworld_7x7':
-        return TorchVectorPOMDP(num_envs=num_envs, size=7, device=device), 9, 4
+        return TorchVectorPOMDP(num_envs=num_envs, size=7, device=device, seed=seed), 9, 4
+    elif task_name == 'gridworld_10x10':
+        return TorchVectorPOMDP(num_envs=num_envs, size=10, device=device, seed=seed), 9, 4
     elif task_name == 't_maze_5':
-        return TorchVectorTMaze(num_envs=num_envs, corridor_length=5, device=device), 8, 3
+        return TorchVectorTMaze(num_envs=num_envs, corridor_length=5, device=device, seed=seed), 8, 3
     elif task_name == 'radial_arm_8':
-        return TorchVectorRadialArmMaze(num_envs=num_envs, num_arms=8, arm_length=3, device=device), 17, 9
+        return TorchVectorRadialArmMaze(num_envs=num_envs, num_arms=8, arm_length=3, device=device, seed=seed), 17, 9
     elif task_name == 'cartpole':
-        return TorchVectorCartPole(num_envs=num_envs, device=device), 4, 2
+        return TorchVectorCartPole(num_envs=num_envs, device=device, seed=seed), 4, 2
     else:
         raise ValueError(f"Unknown task: {task_name}")
 
-def run_experiment(config_name, task_name, device, total_steps=2_000_000):
-    print(f"\n--- Starting {config_name} on {task_name} ---")
+def run_experiment(config_name, task_name, device, total_steps=2_000_000, seed=42):
+    print(f"\n--- Starting {config_name} on {task_name} (Seed: {seed}) ---")
     
-    train_env, d_obs, d_act = get_env(task_name, 512, device)
-    eval_env, _, _ = get_env(task_name, 64, device)
+    train_env, d_obs, d_act = get_env(task_name, 512, device, seed=seed)
+    eval_env, _, _ = get_env(task_name, 64, device, seed=seed+1000)
     
     config = {
         'num_envs': 512, 'num_steps': 128, 'ppo_epochs': 4,
@@ -69,13 +71,14 @@ def run_experiment(config_name, task_name, device, total_steps=2_000_000):
         'total_updates': total_steps // (512 * 128),
         'target_kl': 0.015,
         'vf_clip': 0.2,
-        'd_obs': d_obs
+        'd_obs': d_obs,
+        'seed': seed
     }
 
     if config_name.startswith('mbm'):
         brain_config = {
             'd_obs': d_obs, 'd_z': 512, 'd_sel': 64, 'd_act': d_act,
-            'lr': 3e-4, 'seed': 42,
+            'lr': 3e-4, 'seed': seed,
             'sparse_cortex': False,
             'gamma': 0.99, 'gae_lambda': 0.95, 'eps_clip': 0.2,
             'value_coef': 0.5, 'entropy_coef': 0.01, 'vf_clip': 0.2,
