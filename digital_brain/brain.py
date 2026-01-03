@@ -160,12 +160,14 @@ class DigitalBrain(nn.Module):
         # update_trace controlled by global learn AND config plasticity flag
         z_t, pred_t, new_cortex_state = self.cortex.forward(gated_x, self.state.cortex_state, update_trace=(learn and use_plas))
 
-        # 3) Hippocampus novelty + retrieval
+        # 3) Hippocampus novelty + retrieval (with confidence thresholding)
         novelty = torch.zeros(B, device=obs.x.device)
         retrieved = None
         if use_hip:
             novelty = self.hippocampus.novelty(z_t)
-            retrieved = self.hippocampus.retrieve(z_t)
+            # Use confidence threshold to prevent stale memory interference
+            confidence_threshold = self.config.get('hip_confidence_threshold', 0.5)
+            retrieved = self.hippocampus.retrieve(z_t, confidence_threshold=confidence_threshold)
 
         # 4) Basal Ganglia: action/selection + TD-RPE (DA) computed using last reward and current value
         # 7) Cerebellum: Compute correction signal

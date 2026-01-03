@@ -93,8 +93,8 @@ class CorticalMicrocircuit(nn.Module):
 
     def apply_plasticity(self, mod_signals, state):
         """
-        Apply global neuromodulation to plastic weights.
-        Delta W = lr * Trace * Modulator
+        Apply global neuromodulation to plastic weights with homeostatic regulation.
+        Delta W = adaptive_lr * Trace * Modulator
         """
         if state is None or len(state) < 3:
             return
@@ -104,14 +104,14 @@ class CorticalMicrocircuit(nn.Module):
         # Use DA signal for reward-based learning
         da = mod_signals.DA
         
-        # Delta W
-        delta_w = self.plasticity.compute_delta_w(trace_ee, da)
+        # Delta W with homeostatic regulation (pass current weights for adaptive LR)
+        delta_w = self.plasticity.compute_delta_w(trace_ee, da, current_weights=self.W_ee)
         
         # Update weights (in-place)
         with torch.no_grad():
             self.W_ee.add_(delta_w)
-            # Weight clamping for stability (Priority 1)
-            self.W_ee.clamp_(-5.0, 5.0)
+            # Apply soft clipping for stability (smoother than hard clamp)
+            self.W_ee.data = self.plasticity.apply_soft_clipping(self.W_ee.data)
 
 class HierarchicalCortex(nn.Module):
     """

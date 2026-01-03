@@ -52,19 +52,40 @@ class Hippocampus(nn.Module):
         mem_n = mem / (mem.norm(dim=1, keepdim=True) + self.eps)  # (N, d_z)
         return cue_n @ mem_n.T                                    # (B, N)
 
-    def retrieve(self, cue: torch.Tensor, topk: int = 1) -> torch.Tensor:
+    def retrieve(self, cue: torch.Tensor, topk: int = 1, 
+                 confidence_threshold: float = 0.0) -> torch.Tensor:
+        """
+        Retrieve memories with optional confidence thresholding.
+        
+        Args:
+            cue: Query tensor (B, d_z)
+            topk: Number of memories to retrieve
+            confidence_threshold: If > 0, only retrieve when max similarity 
+                                  exceeds this threshold. Returns zeros for 
+                                  uncertain cases to prevent stale memory interference.
+        """
         if self.count == 0:
             return torch.zeros_like(cue)
 
         mem = self.memory[:self.count]  # (N, d_z)
         sim = self._cosine_sim(cue, mem)
+        max_sim = torch.max(sim, dim=1).values  # (B,)
+        
         k = min(topk, self.count)
         idx = torch.topk(sim, k=k, dim=1).indices  # (B, k)
         gathered = mem[idx]                        # (B, k, d_z)
 
         if k == 1:
-            return gathered[:, 0, :]
-        return gathered.mean(dim=1)
+            retrieved = gathered[:, 0, :]
+        else:
+            retrieved = gathered.mean(dim=1)
+        
+        # Apply confidence thresholding
+        if confidence_threshold > 0:
+            confident_mask = (max_sim > confidence_threshold).unsqueeze(1)  # (B, 1)
+            retrieved = retrieved * confident_mask.float()
+        
+        return retrieved
 
     def replay(self, n: int = 5) -> torch.Tensor:
         if self.count == 0:
