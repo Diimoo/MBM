@@ -140,6 +140,7 @@ def comprehensive_eval(brain_path, num_seeds=10):
 ```
 
 **Use This To:**
+
 - Track progress over time
 - Catch regressions when you change things
 - Generate figures for papers
@@ -568,12 +569,12 @@ torchrun --nproc_per_node=4 train_distributed.py
 - [ ] Document results in experiment log
 
 ### If Results Are Good:
-→ Write NeurIPS workshop paper
-→ Start implementing sparse W_ee
+- Write NeurIPS workshop paper
+- Start implementing sparse W_ee
 
 ### If Results Are Mediocre:
-→ Diagnose why (ablations)
-→ Try T-Maze (maybe gridworld isn't the right task)
+- Diagnose why (ablations)
+- Try T-Maze (maybe gridworld isn't the right task)
 
 ---
 

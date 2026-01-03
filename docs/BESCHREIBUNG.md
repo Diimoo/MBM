@@ -502,7 +502,7 @@ for episode in recent_episodes:
 |-------|--------|
 | Kortex-Zustände Z(t) | Keys/Indices für Recall |
 | Kontextsignale | Replay-Sequenzen |
-| Novelty-Signal | |
+| Novelty-Signal | | |
 
 ### 7.6 Zustände
 
@@ -573,7 +573,7 @@ CF = error_signal  # z.B. |predicted - actual|
 |-------|--------|
 | Efferenzkopie (Plan) | Korrigierte Steuerwerte |
 | Error-Signal | Timing-Parameter |
-| Sensorisches Feedback | |
+| Sensorisches Feedback | | |
 
 ### 8.5 Zustände
 
