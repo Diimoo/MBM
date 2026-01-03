@@ -78,6 +78,9 @@ class SynapticPlasticity(nn.Module):
             mod_avg = modulator.mean()
             delta_w = effective_lr * trace * mod_avg
         
+        # HARD CLAMP delta_w to prevent runaway (nuclear option)
+        delta_w = torch.clamp(delta_w, min=-0.1, max=0.1)
+        
         # Track plasticity magnitude for metaplasticity
         delta_w_norm = torch.norm(delta_w).item()
         self.plasticity_history[self.history_ptr] = delta_w_norm

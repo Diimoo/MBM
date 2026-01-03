@@ -15,6 +15,12 @@ class BasalGanglia(nn.Module):
         # Memory-augmented policy head (Priority 5)
         self.memory_head = nn.Linear(d_z, d_act)
         self.gamma = 0.99
+        
+        # Better initialization for stability
+        nn.init.orthogonal_(self.policy_head.weight, gain=0.01)  # Small initial policy
+        nn.init.orthogonal_(self.value_head.weight, gain=1.0)
+        nn.init.zeros_(self.policy_head.bias)
+        nn.init.zeros_(self.value_head.bias)
 
     def step(self, z_t, reward, ctx, done, prev_value=None, memory_context=None, cerebellum_correction=None, action_to_eval=None):
         """

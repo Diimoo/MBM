@@ -23,11 +23,13 @@ class CorticalMicrocircuit(nn.Module):
         self.dt = dt
         self.use_norm = use_norm
         
-        # Weights
-        self.W_ei = nn.Parameter(torch.abs(torch.randn(d_z, d_z)) * 0.1) # E -> I
-        self.W_ie = nn.Parameter(torch.abs(torch.randn(d_z, d_z)) * 0.1) # I -> E
-        self.W_ee = nn.Parameter(torch.abs(torch.randn(d_z, d_z)) * 0.1) # E -> E (recurrent, plastic)
-        self.W_in = nn.Parameter(torch.randn(d_in, d_z) * 0.1)          # Input -> E
+        # Weights - use smaller initialization for stability
+        self.W_ei = nn.Parameter(torch.abs(torch.randn(d_z, d_z)) * 0.05) # E -> I
+        self.W_ie = nn.Parameter(torch.abs(torch.randn(d_z, d_z)) * 0.05) # I -> E
+        self.W_ee = nn.Parameter(torch.zeros(d_z, d_z))  # Start near zero, let plasticity grow
+        nn.init.xavier_uniform_(self.W_ee, gain=0.1)     # Small Xavier init
+        self.W_ee.data = torch.abs(self.W_ee.data)       # Force positive (E→E)
+        self.W_in = nn.Parameter(torch.randn(d_in, d_z) * 0.05)  # Input -> E
         
         # Normalization
         if use_norm:

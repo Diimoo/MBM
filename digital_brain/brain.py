@@ -16,7 +16,7 @@ class DigitalBrain(nn.Module):
         super().__init__()
         self.config = config
 
-        from .modules.cortex import Cortex
+        from .modules.cortex import Cortex, HierarchicalCortex
         from .modules.thalamus import Thalamus
         from .modules.hippocampus import Hippocampus
         from .modules.basal_ganglia import BasalGanglia
@@ -231,6 +231,22 @@ class DigitalBrain(nn.Module):
                 '5HT': mods.HT5.mean().item(),
             }
         )
+
+        # SAFETY CHECK: Fail fast on NaN before corruption spreads
+        if torch.isnan(value).any() or torch.isnan(log_prob).any():
+            print(f"🚨 NaN DETECTED in brain.step()!")
+            print(f"   value: {value.mean().item() if not torch.isnan(value).all() else 'ALL NaN'}")
+            print(f"   log_prob: {log_prob.mean().item() if not torch.isnan(log_prob).all() else 'ALL NaN'}")
+            print(f"   DA: {da.mean().item():.4f}, novelty: {novelty.mean().item():.4f}")
+            print(f"   z_t stats: mean={z_t.mean().item():.4f}, max={z_t.abs().max().item():.4f}")
+            # Check weight stats
+            if hasattr(self.cortex.microcircuit, 'layers'):
+                for i, layer in enumerate(self.cortex.microcircuit.layers):
+                    w_max = layer.W_ee.abs().max().item()
+                    print(f"   Layer {i} W_ee max: {w_max:.4f}")
+            elif hasattr(self.cortex.microcircuit, 'W_ee'):
+                print(f"   W_ee max: {self.cortex.microcircuit.W_ee.abs().max().item():.4f}")
+            raise RuntimeError("NaN detected - stopping before corruption spreads")
 
         return action, log_prob, value, self.state, log, entropy
 
