@@ -1,1 +1,7 @@
 node_modules
+*.pth
+checkpoints/
+backups_pth/
+__pycache__/
+.venv/
+
