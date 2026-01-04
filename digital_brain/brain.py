@@ -47,7 +47,10 @@ class DigitalBrain(nn.Module):
         self._prev_mods: ModSignals | None = None         # per-batch scalars
         self._prev_pred: torch.Tensor | None = None       # (B, d_obs)
 
-    def reset(self, batch_size: int, device: str | torch.device = "cpu"):
+    def reset(self, batch_size: int, device: str | torch.device | None = None):
+        # Auto-detect device from model parameters if not specified
+        if device is None:
+            device = next(self.parameters()).device
         device = torch.device(device)
         self.to(device) # Ensure modules are on device
         

@@ -49,6 +49,8 @@ def train_vectorized():
     parser.add_argument('--sparse_cortex', type=bool, default=False)
     parser.add_argument('--d_z', type=int, default=512)
     parser.add_argument('--total_steps', type=int, default=2000000000)
+    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--eval_every', type=int, default=10)
     parser.add_argument('--use_hippocampus', type=bool, default=True)
     parser.add_argument('--use_plasticity', type=bool, default=True)
     parser.add_argument('--use_memory_policy', type=bool, default=True)
@@ -71,8 +73,8 @@ def train_vectorized():
         'value_coef': 0.5,
         'vf_clip': 0.2,
         'target_kl': 0.015,  
-        'seed': 42,
-        'eval_every': 40,          # Less frequent eval (was 20)
+        'seed': args.seed,
+        'eval_every': args.eval_every,
         'eval_episodes': 64,       # Reduced from 200
         'num_eval_envs': 64,  
         'selection_penalty': 0.001,
