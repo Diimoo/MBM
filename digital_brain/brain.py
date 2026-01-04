@@ -245,10 +245,15 @@ class DigitalBrain(nn.Module):
             # Check weight stats
             if hasattr(self.cortex.microcircuit, 'layers'):
                 for i, layer in enumerate(self.cortex.microcircuit.layers):
-                    w_max = layer.W_ee.abs().max().item()
+                    if hasattr(layer, 'W_ee'):
+                        w_max = layer.W_ee.abs().max().item()
+                    else:
+                        w_max = layer.W_ee_values.abs().max().item()
                     print(f"   Layer {i} W_ee max: {w_max:.4f}")
             elif hasattr(self.cortex.microcircuit, 'W_ee'):
                 print(f"   W_ee max: {self.cortex.microcircuit.W_ee.abs().max().item():.4f}")
+            elif hasattr(self.cortex.microcircuit, 'W_ee_values'):
+                print(f"   W_ee max: {self.cortex.microcircuit.W_ee_values.abs().max().item():.4f}")
             raise RuntimeError("NaN detected - stopping before corruption spreads")
 
         return action, log_prob, value, self.state, log, entropy

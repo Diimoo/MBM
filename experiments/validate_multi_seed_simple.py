@@ -43,10 +43,10 @@ def run_seed(seed, steps=10000):
 
 def main():
     seeds = [100, 101, 102, 103, 104]  # 5 seeds for quick validation
-    steps = 10000  # 10k steps per seed
+    steps = 5242880  # 10 updates to trigger one eval
     
     print("="*60)
-    print("MULTI-SEED VALIDATION (5 seeds, 10k steps each)")
+    print(f"MULTI-SEED VALIDATION ({len(seeds)} seeds, {steps} steps each)")
     print("="*60)
     
     results = {}

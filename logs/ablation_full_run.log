@@ -1,0 +1,83 @@
+============================================================
+ABLATION STUDY
+============================================================
+Configs: 5
+Seeds per config: 3
+Total runs: 15
+
+
+============================================================
+CONFIG: full_mbm
+============================================================
+  Running: full_mbm seed=200
+    -> SR: 0.969 (1014s)
+  Running: full_mbm seed=201
+    -> SR: 0.984 (1016s)
+  Running: full_mbm seed=202
+    -> SR: 0.984 (1015s)
+  full_mbm: 0.979 ± 0.007
+
+============================================================
+CONFIG: no_plasticity
+============================================================
+  Running: no_plasticity seed=200
+    -> SR: 0.969 (1015s)
+  Running: no_plasticity seed=201
+    -> SR: 0.984 (1028s)
+  Running: no_plasticity seed=202
+    -> SR: 0.984 (1013s)
+  no_plasticity: 0.979 ± 0.007
+
+============================================================
+CONFIG: no_hippocampus
+============================================================
+  Running: no_hippocampus seed=200
+    -> SR: 0.969 (1007s)
+  Running: no_hippocampus seed=201
+    -> SR: 0.984 (1024s)
+  Running: no_hippocampus seed=202
+    -> SR: 0.984 (1050s)
+  no_hippocampus: 0.979 ± 0.007
+
+============================================================
+CONFIG: no_cerebellum
+============================================================
+  Running: no_cerebellum seed=200
+    -> SR: 0.969 (1043s)
+  Running: no_cerebellum seed=201
+    -> SR: 0.984 (1001s)
+  Running: no_cerebellum seed=202
+    -> SR: 0.984 (1019s)
+  no_cerebellum: 0.979 ± 0.007
+
+============================================================
+CONFIG: no_memory_policy
+============================================================
+  Running: no_memory_policy seed=200
+    -> SR: 0.969 (964s)
+  Running: no_memory_policy seed=201
+    -> SR: 0.984 (920s)
+  Running: no_memory_policy seed=202
+    -> SR: 0.984 (928s)
+  no_memory_policy: 0.979 ± 0.007
+
+============================================================
+ABLATION RESULTS SUMMARY
+============================================================
+
+Config                  Mean SR      Std                Seeds
+------------------------------------------------------------
+full_mbm                  0.979    0.007 [0.97, 0.98, 0.98]
+no_plasticity             0.979    0.007 [0.97, 0.98, 0.98]
+no_hippocampus            0.979    0.007 [0.97, 0.98, 0.98]
+no_cerebellum             0.979    0.007 [0.97, 0.98, 0.98]
+no_memory_policy          0.979    0.007 [0.97, 0.98, 0.98]
+
+Config                Drop from Full
+----------------------------------------
+no_plasticity                  +0.0%
+no_hippocampus                 +0.0%
+no_cerebellum                  +0.0%
+no_memory_policy               +0.0%
+
+Results saved to logs/ablation_results.txt

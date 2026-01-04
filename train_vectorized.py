@@ -50,6 +50,7 @@ def train_vectorized():
     parser.add_argument('--d_z', type=int, default=512)
     parser.add_argument('--total_steps', type=int, default=2000000000)
     parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--grid_size', type=int, default=5)
     parser.add_argument('--eval_every', type=int, default=10)
     parser.add_argument('--use_hippocampus', type=bool, default=True)
     parser.add_argument('--use_plasticity', type=bool, default=True)
@@ -84,7 +85,8 @@ def train_vectorized():
         'use_plasticity': args.use_plasticity,
         'use_memory_policy': args.use_memory_policy,
         'use_cerebellum': args.use_cerebellum,
-        'locality_radius': args.locality_radius
+        'locality_radius': args.locality_radius,
+        'grid_size': args.grid_size
     }
 
     torch.manual_seed(config['seed'])
@@ -93,8 +95,8 @@ def train_vectorized():
     print(f"Using device: {device}")
     print(f"Parallel Envs: {config['num_envs']}")
 
-    envs = TorchVectorPOMDP(num_envs=config['num_envs'], size=5, device=device, seed=config['seed'])
-    eval_env = TorchVectorPOMDP(num_envs=config['num_eval_envs'], size=5, device=device, seed=config['seed'] + 1000)
+    envs = TorchVectorPOMDP(num_envs=config['num_envs'], size=config['grid_size'], device=device, seed=config['seed'])
+    eval_env = TorchVectorPOMDP(num_envs=config['num_eval_envs'], size=config['grid_size'], device=device, seed=config['seed'] + 1000)
 
     brain = DigitalBrain(config).to(device)
     

@@ -167,3 +167,9 @@ The MBM in this repository operationalizes a biologically grounded, modular cont
 - Neuromodulators (DA/NE/ACh/5-HT): digital_brain/modules/neuromodulators.py
 - Plasticity (eligibility, ΔW): digital_brain/modules/plasticity.py
 - Cerebellar correction: digital_brain/modules/cerebellum.py
+
+## Known Issues (Jan 2026)
+- High variance across seeds (σ=0.43 vs PPO σ=0.21)
+- Performance depends heavily on task similarity
+- Hippocampus integration incomplete
+- DA signal sometimes collapses (σ=0.00)
