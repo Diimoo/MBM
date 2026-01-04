@@ -1,0 +1,33 @@
+Using device: cuda
+Parallel Envs: 4096
+Stage-B: Training BG + Thalamus + Cerebellum + PredHead (316575 params)
+Starting Vectorized PPO Training (4096 envs, 128 steps/upd)...
+/home/ahmed/.local/lib/python3.13/site-packages/numpy/_core/fromnumeric.py:3860: RuntimeWarning: Mean of empty slice.
+  return _methods._mean(a, axis=axis, dtype=dtype,
+/home/ahmed/.local/lib/python3.13/site-packages/numpy/_core/_methods.py:144: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+[B] Upd   10 | EV 0.06 | KL 0.0037 | DA_std 41.00 | W_max 0.25 | Tr_max 5.96 | PolW 0.04 | FPS 53706
+  -> Eval SR: 0.406
+  -> New Best SR: 0.406
+[B] Upd   20 | EV 0.10 | KL 0.0041 | DA_std 81.97 | W_max 0.24 | Tr_max 3.70 | PolW 0.06 | FPS 51523
+  -> Eval SR: 0.500
+  -> New Best SR: 0.500
+[B] Upd   30 | EV 0.10 | KL 0.0048 | DA_std 128.22 | W_max 0.24 | Tr_max 2.72 | PolW 0.07 | FPS 50806
+  -> Eval SR: 0.672
+  -> New Best SR: 0.672
+[B] Upd   40 | EV 0.08 | KL 0.0028 | DA_std 157.58 | W_max 0.25 | Tr_max 2.32 | PolW 0.08 | FPS 49318
+  -> Eval SR: 0.781
+  -> New Best SR: 0.781
+[B] Upd   50 | EV 0.06 | KL 0.0035 | DA_std 186.99 | W_max 0.26 | Tr_max 2.12 | PolW 0.10 | FPS 48993
+  -> Eval SR: 0.812
+  -> New Best SR: 0.812
+[B] Upd   60 | EV 0.04 | KL 0.0033 | DA_std 216.00 | W_max 0.27 | Tr_max 1.96 | PolW 0.11 | FPS 48542
+  -> Eval SR: 0.812
+[B] Upd   70 | EV -0.01 | KL 0.0036 | DA_std 234.67 | W_max 0.28 | Tr_max 1.80 | PolW 0.12 | FPS 47835
+  -> Eval SR: 0.938
+  -> New Best SR: 0.938
+[B] Upd   80 | EV 0.00 | KL 0.0036 | DA_std 248.60 | W_max 0.28 | Tr_max 1.71 | PolW 0.13 | FPS 48253
+  -> Eval SR: 0.938
+[B] Upd   90 | EV 0.02 | KL 0.0026 | DA_std 260.44 | W_max 0.28 | Tr_max 1.62 | PolW 0.14 | FPS 47228
+  -> Eval SR: 0.969
+  -> New Best SR: 0.969
