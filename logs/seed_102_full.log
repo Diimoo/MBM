@@ -20,3 +20,9 @@ Starting Vectorized PPO Training (4096 envs, 128 steps/upd)...
 [B] Upd   50 | EV 0.10 | KL 0.0044 | DA_std 170.91 | W_max 0.25 | Tr_max 2.05 | PolW 0.09 | FPS 48468
   -> Eval SR: 0.797
   -> New Best SR: 0.797
+[B] Upd   60 | EV 0.05 | KL 0.0036 | DA_std 205.50 | W_max 0.26 | Tr_max 1.86 | PolW 0.09 | FPS 48208
+  -> Eval SR: 0.828
+  -> New Best SR: 0.828
+[B] Upd   70 | EV 0.04 | KL 0.0029 | DA_std 232.56 | W_max 0.27 | Tr_max 1.69 | PolW 0.10 | FPS 46120
+  -> Eval SR: 0.984
+  -> New Best SR: 0.984

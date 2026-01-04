@@ -1,0 +1,11 @@
+Using device: cuda
+Parallel Envs: 4096
+Stage-B: Training BG + Thalamus + Cerebellum + PredHead (316575 params)
+Starting Vectorized PPO Training (4096 envs, 128 steps/upd)...
+/home/ahmed/.local/lib/python3.13/site-packages/numpy/_core/fromnumeric.py:3860: RuntimeWarning: Mean of empty slice.
+  return _methods._mean(a, axis=axis, dtype=dtype,
+/home/ahmed/.local/lib/python3.13/site-packages/numpy/_core/_methods.py:144: RuntimeWarning: invalid value encountered in scalar divide
+  ret = ret.dtype.type(ret / rcount)
+[B] Upd   10 | EV 0.07 | KL 0.0034 | DA_std 41.41 | W_max 0.26 | Tr_max 6.96 | PolW 0.05 | FPS 52363
+  -> Eval SR: 0.359
+  -> New Best SR: 0.359
