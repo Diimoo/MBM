@@ -1,0 +1,157 @@
+{
+  "summary": {
+    "Full MBM": {
+      "english_before": 0.7123842592592592,
+      "english_after": 0.7100694444444445,
+      "forgetting": -5.051764370656422,
+      "french": 0.6793981481481483,
+      "forgetting_std": 32.80436677219543
+    },
+    "No Hippocampus": {
+      "english_before": 0.6412037037037037,
+      "english_after": 0.8246527777777778,
+      "forgetting": -38.01875411727978,
+      "french": 0.8287037037037037,
+      "forgetting_std": 51.46857492256306
+    },
+    "No Plasticity": {
+      "english_before": 0.736111111111111,
+      "english_after": 0.7476851851851851,
+      "forgetting": -10.669841442414691,
+      "french": 0.7546296296296297,
+      "forgetting_std": 26.162038769780914
+    },
+    "Baseline": {
+      "english_before": 0.8883101851851852,
+      "english_after": 0.9484953703703703,
+      "forgetting": -6.994964091808531,
+      "french": 0.9646990740740741,
+      "forgetting_std": 4.2142228249472735
+    }
+  },
+  "raw_results": [
+    {
+      "config_name": "Full MBM",
+      "english_before_french": 0.5868055555555556,
+      "english_after_french": 0.8489583333333334,
+      "french_accuracy": 0.8472222222222222,
+      "forgetting_percent": -44.67455621301775,
+      "backward_transfer": 0.5189583333333334,
+      "seed": 42
+    },
+    {
+      "config_name": "No Hippocampus",
+      "english_before_french": 0.7100694444444444,
+      "english_after_french": 0.5850694444444444,
+      "french_accuracy": 0.5920138888888888,
+      "forgetting_percent": 17.6039119804401,
+      "backward_transfer": 0.2550694444444444,
+      "seed": 42
+    },
+    {
+      "config_name": "No Plasticity",
+      "english_before_french": 0.9548611111111112,
+      "english_after_french": 0.7690972222222222,
+      "french_accuracy": 0.7604166666666666,
+      "forgetting_percent": 19.45454545454546,
+      "backward_transfer": 0.4390972222222222,
+      "seed": 42
+    },
+    {
+      "config_name": "Baseline",
+      "english_before_french": 0.8958333333333334,
+      "english_after_french": 0.9496527777777778,
+      "french_accuracy": 0.9548611111111112,
+      "forgetting_percent": -6.007751937984493,
+      "backward_transfer": 0.6196527777777778,
+      "seed": 42
+    },
+    {
+      "config_name": "Full MBM",
+      "english_before_french": 0.8715277777777778,
+      "english_after_french": 0.5607638888888888,
+      "french_accuracy": 0.5190972222222222,
+      "forgetting_percent": 35.65737051792829,
+      "backward_transfer": 0.23076388888888882,
+      "seed": 43
+    },
+    {
+      "config_name": "No Hippocampus",
+      "english_before_french": 0.7586805555555556,
+      "english_after_french": 0.9496527777777778,
+      "french_accuracy": 0.9600694444444444,
+      "forgetting_percent": -25.171624713958806,
+      "backward_transfer": 0.6196527777777778,
+      "seed": 43
+    },
+    {
+      "config_name": "No Plasticity",
+      "english_before_french": 0.9010416666666666,
+      "english_after_french": 0.9652777777777778,
+      "french_accuracy": 0.9565972222222222,
+      "forgetting_percent": -7.129094412331412,
+      "backward_transfer": 0.6352777777777778,
+      "seed": 43
+    },
+    {
+      "config_name": "Baseline",
+      "english_before_french": 0.828125,
+      "english_after_french": 0.9322916666666666,
+      "french_accuracy": 0.9513888888888888,
+      "forgetting_percent": -12.578616352201252,
+      "backward_transfer": 0.6022916666666667,
+      "seed": 43
+    },
+    {
+      "config_name": "Full MBM",
+      "english_before_french": 0.6788194444444444,
+      "english_after_french": 0.7204861111111112,
+      "french_accuracy": 0.671875,
+      "forgetting_percent": -6.138107416879807,
+      "backward_transfer": 0.39048611111111114,
+      "seed": 44
+    },
+    {
+      "config_name": "No Hippocampus",
+      "english_before_french": 0.4548611111111111,
+      "english_after_french": 0.9392361111111112,
+      "french_accuracy": 0.9340277777777778,
+      "forgetting_percent": -106.48854961832062,
+      "backward_transfer": 0.6092361111111111,
+      "seed": 44
+    },
+    {
+      "config_name": "No Plasticity",
+      "english_before_french": 0.3524305555555556,
+      "english_after_french": 0.5086805555555556,
+      "french_accuracy": 0.546875,
+      "forgetting_percent": -44.33497536945812,
+      "backward_transfer": 0.17868055555555556,
+      "seed": 44
+    },
+    {
+      "config_name": "Baseline",
+      "english_before_french": 0.9409722222222222,
+      "english_after_french": 0.9635416666666666,
+      "french_accuracy": 0.9878472222222222,
+      "forgetting_percent": -2.3985239852398497,
+      "backward_transfer": 0.6335416666666667,
+      "seed": 44
+    }
+  ],
+  "args": {
+    "mode": "ablation",
+    "seed": 44,
+    "num_seeds": 3,
+    "grid_size": 5,
+    "d_z": 256,
+    "d_lang_embed": 64,
+    "d_lang_hidden": 128,
+    "num_envs": 512,
+    "num_steps": 64,
+    "mini_batch_size": 4096,
+    "lr": 0.0003,
+    "stage_updates": 100,
+    "eval_every": 25
+  }
+}

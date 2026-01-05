@@ -189,12 +189,12 @@ def train_minigrid():
 
         # 2. GAE
         with torch.inference_mode():
-             # Simplified: Assume 0 value for next state (roughly correct for Done states, slightly biased for truncated)
-             # Better: Use brain's internal state which is now approx at t+1 (from step) to predict value?
-             # But brain.step() uses current obs. We need to feed obs_next_flat to get value.
-             # We can't update state though.
-             # Let's just use 0.0 for bootstrapping in this benchmark iteration for speed.
-             next_value = 0.0 
+            # Get value of the last state for bootstrapping
+            obs_last = obs_flat
+            # The brain's recurrent state is already at the correct step for this
+            gated_last = brain.thalamus.gate(obs_last, brain._prev_selection, brain._prev_mods)
+            z_last, _, _ = brain.cortex.forward(gated_last, brain.state.cortex_state, update_trace=False)
+            next_value = brain.bg.value_head(z_last).squeeze(-1) 
              
         adv_buf = torch.zeros((T, E), device=device)
         last_gae = 0

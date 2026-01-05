@@ -1,6 +1,47 @@
 import torch
 import torch.nn as nn
 from .datatypes import Obs, BrainState, StepLog, ModSignals
+from typing import Optional
+
+
+class LanguageEncoder(nn.Module):
+    """
+    LSTM-based language encoder for instruction processing.
+    
+    Converts token sequences into fixed-size embeddings that can be
+    concatenated with visual features for grounded language learning.
+    """
+    def __init__(self, vocab_size: int = 50, d_embed: int = 64, d_hidden: int = 128):
+        super().__init__()
+        self.vocab_size = vocab_size
+        self.d_embed = d_embed
+        self.d_hidden = d_hidden
+        
+        self.embedding = nn.Embedding(vocab_size, d_embed, padding_idx=9)  # <PAD>=9
+        self.lstm = nn.LSTM(d_embed, d_hidden, batch_first=True, bidirectional=False)
+        self.layer_norm = nn.LayerNorm(d_hidden)
+        
+    def forward(self, tokens: torch.Tensor) -> torch.Tensor:
+        """
+        Encode instruction tokens into a fixed-size vector.
+        
+        Args:
+            tokens: [batch, seq_len] int tensor of token IDs
+            
+        Returns:
+            h: [batch, d_hidden] instruction embedding
+        """
+        # Embed tokens
+        embed = self.embedding(tokens)  # [batch, seq_len, d_embed]
+        
+        # LSTM encoding
+        _, (h, _) = self.lstm(embed)  # h: [1, batch, d_hidden]
+        h = h.squeeze(0)  # [batch, d_hidden]
+        
+        # Normalize for stable training
+        h = self.layer_norm(h)
+        
+        return h
 
 class DigitalBrain(nn.Module):
     """
@@ -15,6 +56,21 @@ class DigitalBrain(nn.Module):
     def __init__(self, config: dict):
         super().__init__()
         self.config = config
+        self.use_language = config.get('use_language', False)
+        
+        # Language encoder (optional)
+        if self.use_language:
+            self.lang_encoder = LanguageEncoder(
+                vocab_size=config.get('vocab_size', 50),
+                d_embed=config.get('d_lang_embed', 64),
+                d_hidden=config.get('d_lang_hidden', 128)
+            )
+            # Projection to combine visual + language
+            d_combined = config['d_z'] + config.get('d_lang_hidden', 128)
+            self.lang_projection = nn.Linear(d_combined, config['d_z'])
+        else:
+            self.lang_encoder = None
+            self.lang_projection = None
 
         from .modules.cortex import Cortex, HierarchicalCortex
         from .modules.thalamus import Thalamus
@@ -94,13 +150,15 @@ class DigitalBrain(nn.Module):
         )
         self._prev_pred = torch.zeros(batch_size, self.config['d_obs'], device=device)
 
-    def step(self, obs: Obs, reward: torch.Tensor, done: torch.Tensor, learn: bool = True):
+    def step(self, obs: Obs, reward: torch.Tensor, done: torch.Tensor, 
+             learn: bool = True, instruction: Optional[torch.Tensor] = None):
         """
         Args:
             obs: current observation (Obs.x shape (B, d_obs))
             reward: last env reward (shape (B,1) or (B,))
             done: last env done flag (shape (B,1) or (B,))
             learn: if True, updates plastic weights and encodes to hippocampus.
+            instruction: optional [B, seq_len] int tensor of language tokens
 
         Returns:
             action, log_prob, value, state, log, entropy
@@ -162,6 +220,12 @@ class DigitalBrain(nn.Module):
         # 2) Cortex update on gated inputs
         # update_trace controlled by global learn AND config plasticity flag
         z_t, pred_t, new_cortex_state = self.cortex.forward(gated_x, self.state.cortex_state, update_trace=(learn and use_plas))
+
+        # 2.5) Language encoding and fusion (if enabled)
+        if self.use_language and instruction is not None:
+            lang_h = self.lang_encoder(instruction)  # [B, d_lang_hidden]
+            z_combined = torch.cat([z_t, lang_h], dim=-1)  # [B, d_z + d_lang_hidden]
+            z_t = self.lang_projection(z_combined)  # [B, d_z] - project back to original dim
 
         # 3) Hippocampus novelty + retrieval (with confidence thresholding)
         novelty = torch.zeros(B, device=obs.x.device)
@@ -258,6 +322,7 @@ class DigitalBrain(nn.Module):
 
         return action, log_prob, value, self.state, log, entropy
 
-    def act(self, obs: Obs, reward: torch.Tensor, done: torch.Tensor):
+    def act(self, obs: Obs, reward: torch.Tensor, done: torch.Tensor, 
+            instruction: Optional[torch.Tensor] = None):
         """Convenience method for evaluation (learn=False)."""
-        return self.step(obs, reward, done, learn=False)
+        return self.step(obs, reward, done, learn=False, instruction=instruction)

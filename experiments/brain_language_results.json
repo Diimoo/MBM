@@ -1,0 +1,37 @@
+{
+  "config": {
+    "d_pattern": 256,
+    "d_semantic": 512,
+    "d_hidden": 512,
+    "num_concepts": 1000,
+    "memory_capacity": 10000
+  },
+  "experiments": {
+    "n400": {
+      "cases": [
+        {
+          "context": "the cat sat on the",
+          "word": "mat",
+          "expectation": "Expected",
+          "surprise": 152.97695922851562
+        },
+        {
+          "context": "the cat sat on the",
+          "word": "fish",
+          "expectation": "Unexpected",
+          "surprise": 152.97695922851562
+        },
+        {
+          "context": "the bird flew in the",
+          "word": "sky",
+          "expectation": "Expected",
+          "surprise": 152.97695922851562
+        },
+        {
+          "context": "the bird flew in the",
+          "word": "table",
+          "expectation": "Unexpected",
+          "surprise": 152.97695922851562
+        }
+      ],
+      "effect_detected": 

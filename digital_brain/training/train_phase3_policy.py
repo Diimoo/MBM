@@ -97,32 +97,15 @@ def train_phase3():
             obs_t = torch.from_numpy(obs_np).unsqueeze(0).to(device)
             obs = Obs(x=obs_t)
 
-            action, log_prob, value, _, _ = brain.step(obs, prev_reward, prev_done)
+            action, log_prob, value, _, _, entropy = brain.step(obs, prev_reward, prev_done)
             action_idx = int(action.item())
-            
-            # Recalculate entropy from logits (need access to policy distribution)
-            # Since step doesn't return div/entropy, we can approximate or modify step.
-            # However, for A2C, we often compute it from the distribution.
-            # Brain.step returns log_prob. 
-            # To get entropy properly we ideally need the distribution.
-            # For now, let's look at how brain.bg.step works. 
-            # It returns action, log_prob.
-            
-            # Hack/Fix: We need entropy. 
-            # Let's assume for now we use the log_prob as a proxy or just rely on the fact 
-            # that we can't easily get it without modifying brain.py.
-            
-            # WAIT. I should modify brain.py or bg.py to return entropy if I want to use it.
-            # Or I can just continue without entropy first? 
-            # User specifically suggested entropy bonus.
-            # Let's check basal_ganglia.py first.
             
             next_obs_np, reward, done, _ = env.step(action_idx)
 
             log_probs.append(log_prob.unsqueeze(0))
             values.append(value)
             rewards.append(reward)
-            entropies.append(-log_prob) # Proxy entropy
+            entropies.append(entropy)
 
             obs_np = next_obs_np
             prev_reward = torch.tensor([[reward]], dtype=torch.float32, device=device)
@@ -130,31 +113,37 @@ def train_phase3():
             steps += 1
 
         if len(rewards) > 0:
+            # Calculate returns (simple Monte Carlo)
             returns = []
             R = 0.0
+            # If not done, bootstrap from the last value
+            if not done:
+                with torch.no_grad():
+                    obs_t = torch.from_numpy(obs_np).unsqueeze(0).to(device)
+                    obs = Obs(x=obs_t)
+                    _, _, last_val, _, _, _ = brain.step(obs, prev_reward, prev_done)
+                    R = last_val.item()
+
             for r in reversed(rewards):
                 R = r + config['gamma'] * R
                 returns.insert(0, R)
 
             returns = torch.tensor(returns, dtype=torch.float32, device=device).unsqueeze(1)
-            log_probs_t = torch.cat(log_probs, dim=0).squeeze(-1)
+            log_probs_t = torch.cat(log_probs, dim=0)
             values_t = torch.cat(values, dim=0)
 
-            advantage = (returns - values_t).detach().squeeze(1)
+            advantage = (returns - values_t).detach()
 
             actor_loss = -(log_probs_t * advantage).mean()
             critic_loss = nn.MSELoss()(values_t, returns)
             
-            # Simple entropy approximation: -sum(p * log_p)
-            # Since we only have log_prob of sampled action, this is a MC estimate of -log_prob
-            # entropy ~= -log_prob.mean()
-            entropy_loss = -log_probs_t.mean() * config['entropy_coef']
+            entropy_loss = torch.stack(entropies).mean() * config['entropy_coef']
             
             loss = actor_loss + critic_loss - entropy_loss
 
             optimizer.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(brain.parameters(), 1.0)
+            torch.nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, brain.parameters()), 1.0)
             optimizer.step()
 
         if epoch % config['eval_every'] == 0:

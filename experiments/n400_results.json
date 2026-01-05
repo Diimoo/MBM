@@ -1,0 +1,13 @@
+{
+  "spikes": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "mean_spike": 0.0,
+  "std_spike": 0.0,
+  "positive_ratio": 0.0,
+  "success": false
+}
