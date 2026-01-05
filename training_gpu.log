@@ -182,3 +182,1831 @@ Diversity:  0.6724 (want < 0.5)
 LR:         0.000010
 Time:       0.1h elapsed, 23.9h left
 GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 140
+============================================================
+Loss:       8.5796
+N400:       loss=0.2966, acc=87.5%
+Diversity:  0.6391 (want < 0.5)
+LR:         0.000003
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 150
+============================================================
+Loss:       8.5639
+N400:       loss=0.1980, acc=92.5%
+Diversity:  0.6164 (want < 0.5)
+LR:         0.000100
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.49 GB
+
+✅ NEW BEST LOSS: 8.5639
+💾 Checkpoint saved (epoch 150)
+
+🎯 GENERATION TEST:
+  'the cat' → 'her are in the chacter of soutseal canno'
+  'hello world' → 'impecty or thar chride intred , songs of'
+  'deep learning' → 'a ropusing there enationals or parcies f'
+
+============================================================
+📊 EPOCH 160
+============================================================
+Loss:       8.5744
+N400:       loss=0.2094, acc=95.0%
+Diversity:  0.5889 (want < 0.5)
+LR:         0.000099
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 170
+============================================================
+Loss:       8.5121
+N400:       loss=0.1716, acc=90.0%
+Diversity:  0.5578 (want < 0.5)
+LR:         0.000098
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 180
+============================================================
+Loss:       8.4242
+N400:       loss=0.2560, acc=90.0%
+Diversity:  0.5883 (want < 0.5)
+LR:         0.000095
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 190
+============================================================
+Loss:       8.3818
+N400:       loss=0.1929, acc=95.0%
+Diversity:  0.5605 (want < 0.5)
+LR:         0.000091
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 200
+============================================================
+Loss:       8.3448
+N400:       loss=0.3875, acc=85.0%
+Diversity:  0.4957 (want < 0.5)
+LR:         0.000086
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.51 GB
+
+✅ NEW BEST LOSS: 8.3448
+💾 Checkpoint saved (epoch 200)
+
+🎯 GENERATION TEST:
+  'the cat' → 'redutife to carrices seach maggers inter'
+  'hello world' → 'ratire in chaven were dream for teathers'
+  'deep learning' → 'or commithed incoportanists ane in anoth'
+
+============================================================
+📊 EPOCH 210
+============================================================
+Loss:       8.2851
+N400:       loss=0.1080, acc=97.5%
+Diversity:  0.5181 (want < 0.5)
+LR:         0.000080
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.48 GB
+
+============================================================
+📊 EPOCH 220
+============================================================
+Loss:       8.2796
+N400:       loss=0.1227, acc=100.0%
+Diversity:  0.5724 (want < 0.5)
+LR:         0.000073
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.48 GB
+
+============================================================
+📊 EPOCH 230
+============================================================
+Loss:       8.2549
+N400:       loss=0.0706, acc=100.0%
+Diversity:  0.5070 (want < 0.5)
+LR:         0.000066
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.48 GB
+
+============================================================
+📊 EPOCH 240
+============================================================
+Loss:       8.2153
+N400:       loss=0.0640, acc=100.0%
+Diversity:  0.5485 (want < 0.5)
+LR:         0.000058
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.48 GB
+
+============================================================
+📊 EPOCH 250
+============================================================
+Loss:       8.1831
+N400:       loss=0.0577, acc=97.5%
+Diversity:  0.5184 (want < 0.5)
+LR:         0.000051
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.48 GB
+
+✅ NEW BEST LOSS: 8.1831
+💾 Checkpoint saved (epoch 250)
+
+🎯 GENERATION TEST:
+  'the cat' → 'repiston for the story striests to do no'
+  'hello world' → 'electry and termitted with muse childred'
+  'deep learning' → 'is an absount flower to more passion was'
+
+============================================================
+📊 EPOCH 260
+============================================================
+Loss:       8.1564
+N400:       loss=0.0660, acc=97.5%
+Diversity:  0.5417 (want < 0.5)
+LR:         0.000043
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 270
+============================================================
+Loss:       8.1332
+N400:       loss=0.0290, acc=97.5%
+Diversity:  0.4979 (want < 0.5)
+LR:         0.000035
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 280
+============================================================
+Loss:       8.1239
+N400:       loss=0.0321, acc=100.0%
+Diversity:  0.5243 (want < 0.5)
+LR:         0.000028
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 290
+============================================================
+Loss:       8.0976
+N400:       loss=0.0124, acc=100.0%
+Diversity:  0.5407 (want < 0.5)
+LR:         0.000021
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 300
+============================================================
+Loss:       8.0899
+N400:       loss=0.0018, acc=100.0%
+Diversity:  0.5012 (want < 0.5)
+LR:         0.000015
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.49 GB
+
+✅ NEW BEST LOSS: 8.0899
+💾 Checkpoint saved (epoch 300)
+
+🎯 GENERATION TEST:
+  'the cat' → 'hero officers to the played at the folm '
+  'hello world' → 'outh a found of marging star , and incor'
+  'deep learning' → 'sumptime implesser and ifterned along te'
+
+============================================================
+📊 EPOCH 310
+============================================================
+Loss:       8.0790
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.5334 (want < 0.5)
+LR:         0.000010
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 320
+============================================================
+Loss:       8.0791
+N400:       loss=0.0113, acc=100.0%
+Diversity:  0.4831 (want < 0.5)
+LR:         0.000006
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 330
+============================================================
+Loss:       8.0835
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.5015 (want < 0.5)
+LR:         0.000003
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 340
+============================================================
+Loss:       8.0923
+N400:       loss=0.0015, acc=100.0%
+Diversity:  0.5144 (want < 0.5)
+LR:         0.000002
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 350
+============================================================
+Loss:       8.0683
+N400:       loss=0.0042, acc=100.0%
+Diversity:  0.4913 (want < 0.5)
+LR:         0.000100
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.51 GB
+
+✅ NEW BEST LOSS: 8.0683
+💾 Checkpoint saved (epoch 350)
+
+🎯 GENERATION TEST:
+  'the cat' → 'precitions , school would be agreas are '
+  'hello world' → 'orghouns has been distouting the pilotyp'
+  'deep learning' → 'original act of any the same subve sound'
+
+============================================================
+📊 EPOCH 360
+============================================================
+Loss:       8.1394
+N400:       loss=0.0151, acc=100.0%
+Diversity:  0.5188 (want < 0.5)
+LR:         0.000100
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.53 GB
+
+============================================================
+📊 EPOCH 370
+============================================================
+Loss:       8.0988
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4952 (want < 0.5)
+LR:         0.000099
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.53 GB
+
+============================================================
+📊 EPOCH 380
+============================================================
+Loss:       8.0545
+N400:       loss=0.0009, acc=100.0%
+Diversity:  0.4655 (want < 0.5)
+LR:         0.000099
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.53 GB
+
+============================================================
+📊 EPOCH 390
+============================================================
+Loss:       8.0460
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4843 (want < 0.5)
+LR:         0.000098
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.53 GB
+
+============================================================
+📊 EPOCH 400
+============================================================
+Loss:       8.0017
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4624 (want < 0.5)
+LR:         0.000096
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.53 GB
+
+✅ NEW BEST LOSS: 8.0017
+💾 Checkpoint saved (epoch 400)
+
+🎯 GENERATION TEST:
+  'the cat' → 'rear insect the partic that albege , har'
+  'hello world' → 'last track for a feince that that it for'
+  'deep learning' → 'all five a member for the citical must a'
+
+============================================================
+📊 EPOCH 410
+============================================================
+Loss:       7.9867
+N400:       loss=0.0028, acc=100.0%
+Diversity:  0.4168 (want < 0.5)
+LR:         0.000095
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 420
+============================================================
+Loss:       7.9802
+N400:       loss=0.0045, acc=100.0%
+Diversity:  0.3936 (want < 0.5)
+LR:         0.000093
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 430
+============================================================
+Loss:       7.9633
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4588 (want < 0.5)
+LR:         0.000091
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 440
+============================================================
+Loss:       7.9266
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4122 (want < 0.5)
+LR:         0.000088
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 450
+============================================================
+Loss:       7.9126
+N400:       loss=0.0035, acc=100.0%
+Diversity:  0.4001 (want < 0.5)
+LR:         0.000086
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.54 GB
+
+✅ NEW BEST LOSS: 7.9126
+💾 Checkpoint saved (epoch 450)
+
+🎯 GENERATION TEST:
+  'the cat' → 'he chain for the rate of hime of bit be '
+  'hello world' → 'villes the record for confiction signati'
+  'deep learning' → 'ulse of evalwally consisting made with t'
+
+============================================================
+📊 EPOCH 460
+============================================================
+Loss:       7.8737
+N400:       loss=0.0131, acc=100.0%
+Diversity:  0.4375 (want < 0.5)
+LR:         0.000083
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 470
+============================================================
+Loss:       7.8501
+N400:       loss=0.0122, acc=100.0%
+Diversity:  0.4251 (want < 0.5)
+LR:         0.000080
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 480
+============================================================
+Loss:       7.8468
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3738 (want < 0.5)
+LR:         0.000076
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 490
+============================================================
+Loss:       7.8249
+N400:       loss=0.0124, acc=100.0%
+Diversity:  0.4589 (want < 0.5)
+LR:         0.000073
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 500
+============================================================
+Loss:       7.8077
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3868 (want < 0.5)
+LR:         0.000069
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.49 GB
+
+✅ NEW BEST LOSS: 7.8077
+💾 Checkpoint saved (epoch 500)
+
+🎯 GENERATION TEST:
+  'the cat' → 'headqualium composer is no the sprench i'
+  'hello world' → 'residence ob limitaly that the line of s'
+  'deep learning' → 'restilishops choike programs are startin'
+
+============================================================
+📊 EPOCH 510
+============================================================
+Loss:       7.7895
+N400:       loss=0.0054, acc=100.0%
+Diversity:  0.4393 (want < 0.5)
+LR:         0.000066
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 520
+============================================================
+Loss:       7.7848
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4412 (want < 0.5)
+LR:         0.000062
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 530
+============================================================
+Loss:       7.7740
+N400:       loss=0.0194, acc=100.0%
+Diversity:  0.4042 (want < 0.5)
+LR:         0.000058
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 540
+============================================================
+Loss:       7.7236
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4291 (want < 0.5)
+LR:         0.000054
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 550
+============================================================
+Loss:       7.7149
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3806 (want < 0.5)
+LR:         0.000051
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.51 GB
+
+✅ NEW BEST LOSS: 7.7149
+💾 Checkpoint saved (epoch 550)
+
+🎯 GENERATION TEST:
+  'the cat' → 'het one then with telefide . These arms '
+  'hello world' → 'wilt observed as a standmed times into t'
+  'deep learning' → 'much consisted that the formar saxoplate'
+
+============================================================
+📊 EPOCH 560
+============================================================
+Loss:       7.7097
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3843 (want < 0.5)
+LR:         0.000047
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.53 GB
+
+============================================================
+📊 EPOCH 570
+============================================================
+Loss:       7.6948
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3860 (want < 0.5)
+LR:         0.000043
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.53 GB
+
+============================================================
+📊 EPOCH 580
+============================================================
+Loss:       7.6981
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4255 (want < 0.5)
+LR:         0.000039
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.53 GB
+
+============================================================
+📊 EPOCH 590
+============================================================
+Loss:       7.6559
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3976 (want < 0.5)
+LR:         0.000035
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.53 GB
+
+============================================================
+📊 EPOCH 600
+============================================================
+Loss:       7.6571
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4103 (want < 0.5)
+LR:         0.000032
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.53 GB
+
+✅ NEW BEST LOSS: 7.6571
+💾 Checkpoint saved (epoch 600)
+
+🎯 GENERATION TEST:
+  'the cat' → 'ven of the tenny was advised on the ears'
+  'hello world' → 'reached seven mayne lovelies that are th'
+  'deep learning' → 'ultimate insing parenthopshire poises ar'
+
+============================================================
+📊 EPOCH 610
+============================================================
+Loss:       7.6695
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4181 (want < 0.5)
+LR:         0.000028
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 620
+============================================================
+Loss:       7.6740
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3976 (want < 0.5)
+LR:         0.000025
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 630
+============================================================
+Loss:       7.6660
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4311 (want < 0.5)
+LR:         0.000021
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 640
+============================================================
+Loss:       7.6435
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3850 (want < 0.5)
+LR:         0.000018
+Time:       0.2h elapsed, 23.8h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 650
+============================================================
+Loss:       7.6386
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4101 (want < 0.5)
+LR:         0.000015
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.54 GB
+
+✅ NEW BEST LOSS: 7.6386
+💾 Checkpoint saved (epoch 650)
+
+🎯 GENERATION TEST:
+  'the cat' → 'helse is a touch line , head or self and'
+  'hello world' → 'pictual tell the subspecies and persons '
+  'deep learning' → 'multimatior mountains awards including t'
+
+============================================================
+📊 EPOCH 660
+============================================================
+Loss:       7.6392
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4105 (want < 0.5)
+LR:         0.000013
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.56 GB
+
+============================================================
+📊 EPOCH 670
+============================================================
+Loss:       7.6044
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4160 (want < 0.5)
+LR:         0.000010
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.56 GB
+
+============================================================
+📊 EPOCH 680
+============================================================
+Loss:       7.5751
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4277 (want < 0.5)
+LR:         0.000008
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.56 GB
+
+============================================================
+📊 EPOCH 690
+============================================================
+Loss:       7.5887
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4284 (want < 0.5)
+LR:         0.000006
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.56 GB
+
+============================================================
+📊 EPOCH 700
+============================================================
+Loss:       7.6148
+N400:       loss=0.0101, acc=100.0%
+Diversity:  0.3944 (want < 0.5)
+LR:         0.000005
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.56 GB
+
+✅ NEW BEST LOSS: 7.6148
+💾 Checkpoint saved (epoch 700)
+
+🎯 GENERATION TEST:
+  'the cat' → 'he shad , the glymouth consistent of poi'
+  'hello world' → 'elde dates are detail tarmen , cheerings'
+  'deep learning' → 'repeated and left expines , mosmuth make'
+
+============================================================
+📊 EPOCH 710
+============================================================
+Loss:       7.6227
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3884 (want < 0.5)
+LR:         0.000003
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 720
+============================================================
+Loss:       7.5961
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3980 (want < 0.5)
+LR:         0.000002
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 730
+============================================================
+Loss:       7.5950
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3793 (want < 0.5)
+LR:         0.000002
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 740
+============================================================
+Loss:       7.6110
+N400:       loss=0.0126, acc=100.0%
+Diversity:  0.4287 (want < 0.5)
+LR:         0.000001
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 750
+============================================================
+Loss:       7.6130
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3793 (want < 0.5)
+LR:         0.000100
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.51 GB
+
+✅ NEW BEST LOSS: 7.6130
+💾 Checkpoint saved (epoch 750)
+
+🎯 GENERATION TEST:
+  'the cat' → 'her a circuit when the rities of extendi'
+  'hello world' → 'reactive firthfores that wall , increase'
+  'deep learning' → 'suad arranged incertainy persomination ,'
+
+============================================================
+📊 EPOCH 760
+============================================================
+Loss:       7.6712
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3850 (want < 0.5)
+LR:         0.000100
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.53 GB
+
+============================================================
+📊 EPOCH 770
+============================================================
+Loss:       7.6676
+N400:       loss=0.0084, acc=100.0%
+Diversity:  0.3907 (want < 0.5)
+LR:         0.000100
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.53 GB
+
+============================================================
+📊 EPOCH 780
+============================================================
+Loss:       7.6507
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3746 (want < 0.5)
+LR:         0.000100
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.53 GB
+
+============================================================
+📊 EPOCH 790
+============================================================
+Loss:       7.6490
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3646 (want < 0.5)
+LR:         0.000099
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.53 GB
+
+============================================================
+📊 EPOCH 800
+============================================================
+Loss:       7.6342
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3798 (want < 0.5)
+LR:         0.000099
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.53 GB
+💾 Checkpoint saved (epoch 800)
+
+🎯 GENERATION TEST:
+  'the cat' → 'well , which and the later services as o'
+  'hello world' → 'revice bank its sequence and carbons , o'
+  'deep learning' → 'elverbeisatic persecutivality structures'
+
+============================================================
+📊 EPOCH 810
+============================================================
+Loss:       7.6398
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4154 (want < 0.5)
+LR:         0.000099
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 820
+============================================================
+Loss:       7.5684
+N400:       loss=0.0012, acc=100.0%
+Diversity:  0.3607 (want < 0.5)
+LR:         0.000098
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 830
+============================================================
+Loss:       7.5954
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3709 (want < 0.5)
+LR:         0.000098
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 840
+============================================================
+Loss:       7.5793
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3842 (want < 0.5)
+LR:         0.000097
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 850
+============================================================
+Loss:       7.5729
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3605 (want < 0.5)
+LR:         0.000096
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.54 GB
+
+✅ NEW BEST LOSS: 7.5729
+💾 Checkpoint saved (epoch 850)
+
+🎯 GENERATION TEST:
+  'the cat' → 'her who may be areas , in highest punk h'
+  'hello world' → 'ertille , to mall metalogour more number'
+  'deep learning' → 'elevasion titles in this conductring hul'
+
+============================================================
+📊 EPOCH 860
+============================================================
+Loss:       7.5551
+N400:       loss=0.0046, acc=100.0%
+Diversity:  0.3407 (want < 0.5)
+LR:         0.000095
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.56 GB
+
+============================================================
+📊 EPOCH 870
+============================================================
+Loss:       7.5149
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3676 (want < 0.5)
+LR:         0.000095
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.56 GB
+
+============================================================
+📊 EPOCH 880
+============================================================
+Loss:       7.4945
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3538 (want < 0.5)
+LR:         0.000094
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.56 GB
+
+============================================================
+📊 EPOCH 890
+============================================================
+Loss:       7.5240
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3376 (want < 0.5)
+LR:         0.000093
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.56 GB
+
+============================================================
+📊 EPOCH 900
+============================================================
+Loss:       7.5379
+N400:       loss=0.0080, acc=100.0%
+Diversity:  0.3790 (want < 0.5)
+LR:         0.000092
+Time:       0.3h elapsed, 23.7h left
+GPU Memory: 0.56 GB
+
+✅ NEW BEST LOSS: 7.5379
+💾 Checkpoint saved (epoch 900)
+
+🎯 GENERATION TEST:
+  'the cat' → 'vector is peduced by many composed on wo'
+  'hello world' → 'visylming scores observative , which in '
+  'deep learning' → 'elabal remainen failor about indices pre'
+
+============================================================
+📊 EPOCH 910
+============================================================
+Loss:       7.4817
+N400:       loss=0.0177, acc=100.0%
+Diversity:  0.3123 (want < 0.5)
+LR:         0.000091
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.57 GB
+
+============================================================
+📊 EPOCH 920
+============================================================
+Loss:       7.4752
+N400:       loss=0.0412, acc=97.5%
+Diversity:  0.3471 (want < 0.5)
+LR:         0.000089
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.57 GB
+
+============================================================
+📊 EPOCH 930
+============================================================
+Loss:       7.4750
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3348 (want < 0.5)
+LR:         0.000088
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.57 GB
+
+============================================================
+📊 EPOCH 940
+============================================================
+Loss:       7.4553
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3744 (want < 0.5)
+LR:         0.000087
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.57 GB
+
+============================================================
+📊 EPOCH 950
+============================================================
+Loss:       7.4433
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3500 (want < 0.5)
+LR:         0.000086
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.57 GB
+
+✅ NEW BEST LOSS: 7.4433
+💾 Checkpoint saved (epoch 950)
+
+🎯 GENERATION TEST:
+  'the cat' → 'her pall be the lyrics , earls . State c'
+  'hello world' → 'ruly of the telluration talication carbo'
+  'deep learning' → 'oufilly classipical allum terms of all f'
+
+============================================================
+📊 EPOCH 960
+============================================================
+Loss:       7.4305
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3593 (want < 0.5)
+LR:         0.000084
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.52 GB
+
+============================================================
+📊 EPOCH 970
+============================================================
+Loss:       7.3840
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3486 (want < 0.5)
+LR:         0.000083
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.52 GB
+
+============================================================
+📊 EPOCH 980
+============================================================
+Loss:       7.3963
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3423 (want < 0.5)
+LR:         0.000081
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.52 GB
+
+============================================================
+📊 EPOCH 990
+============================================================
+Loss:       7.3923
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3265 (want < 0.5)
+LR:         0.000080
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.52 GB
+
+============================================================
+📊 EPOCH 1000
+============================================================
+Loss:       7.4229
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3218 (want < 0.5)
+LR:         0.000078
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.52 GB
+
+✅ NEW BEST LOSS: 7.4229
+💾 Checkpoint saved (epoch 1000)
+
+🎯 GENERATION TEST:
+  'the cat' → 'reqoruzion designated that : " hasting t'
+  'hello world' → 'elder produced a more committants for op'
+  'deep learning' → 'elder and prize code into a lovely descr'
+
+============================================================
+📊 EPOCH 1010
+============================================================
+Loss:       7.3709
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3279 (want < 0.5)
+LR:         0.000076
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 1020
+============================================================
+Loss:       7.3896
+N400:       loss=0.0040, acc=100.0%
+Diversity:  0.3299 (want < 0.5)
+LR:         0.000075
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 1030
+============================================================
+Loss:       7.3499
+N400:       loss=0.0145, acc=100.0%
+Diversity:  0.3320 (want < 0.5)
+LR:         0.000073
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 1040
+============================================================
+Loss:       7.3484
+N400:       loss=0.0068, acc=100.0%
+Diversity:  0.3119 (want < 0.5)
+LR:         0.000071
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.54 GB
+
+============================================================
+📊 EPOCH 1050
+============================================================
+Loss:       7.3179
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3276 (want < 0.5)
+LR:         0.000069
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.54 GB
+
+✅ NEW BEST LOSS: 7.3179
+💾 Checkpoint saved (epoch 1050)
+
+🎯 GENERATION TEST:
+  'the cat' → 'her ended about her , but not be drag to'
+  'hello world' → 'electorary rights of genious , obtained '
+  'deep learning' → 'eldenly explories sources to save copula'
+
+============================================================
+📊 EPOCH 1060
+============================================================
+Loss:       7.3015
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3097 (want < 0.5)
+LR:         0.000068
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.56 GB
+
+============================================================
+📊 EPOCH 1070
+============================================================
+Loss:       7.3275
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3231 (want < 0.5)
+LR:         0.000066
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.56 GB
+
+============================================================
+📊 EPOCH 1080
+============================================================
+Loss:       7.3302
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3459 (want < 0.5)
+LR:         0.000064
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.56 GB
+
+============================================================
+📊 EPOCH 1090
+============================================================
+Loss:       7.3041
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3516 (want < 0.5)
+LR:         0.000062
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.56 GB
+
+============================================================
+📊 EPOCH 1100
+============================================================
+Loss:       7.2678
+N400:       loss=0.0023, acc=100.0%
+Diversity:  0.3101 (want < 0.5)
+LR:         0.000060
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.56 GB
+
+✅ NEW BEST LOSS: 7.2678
+💾 Checkpoint saved (epoch 1100)
+
+🎯 GENERATION TEST:
+  'the cat' → 'felt alternative model , and the peace d'
+  'hello world' → 'erotide for sleggs , and silful details '
+  'deep learning' → 'eldenside a sequeonal match stadU playwr'
+
+============================================================
+📊 EPOCH 1110
+============================================================
+Loss:       7.2790
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3460 (want < 0.5)
+LR:         0.000058
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.57 GB
+
+============================================================
+📊 EPOCH 1120
+============================================================
+Loss:       7.2594
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3480 (want < 0.5)
+LR:         0.000056
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.57 GB
+
+============================================================
+📊 EPOCH 1130
+============================================================
+Loss:       7.2458
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3355 (want < 0.5)
+LR:         0.000054
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.57 GB
+
+============================================================
+📊 EPOCH 1140
+============================================================
+Loss:       7.2526
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3243 (want < 0.5)
+LR:         0.000052
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.57 GB
+
+============================================================
+📊 EPOCH 1150
+============================================================
+Loss:       7.2523
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3328 (want < 0.5)
+LR:         0.000051
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.57 GB
+
+✅ NEW BEST LOSS: 7.2523
+💾 Checkpoint saved (epoch 1150)
+
+🎯 GENERATION TEST:
+  'the cat' → 'her care and warned the last playoff an '
+  'hello world' → 'electronic inited fracter , sometimes co'
+  'deep learning' → 'else achievements include the formlow de'
+
+============================================================
+📊 EPOCH 1160
+============================================================
+Loss:       7.2330
+N400:       loss=0.0009, acc=100.0%
+Diversity:  0.3522 (want < 0.5)
+LR:         0.000049
+Time:       0.4h elapsed, 23.6h left
+GPU Memory: 0.59 GB
+
+============================================================
+📊 EPOCH 1170
+============================================================
+Loss:       7.1996
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3158 (want < 0.5)
+LR:         0.000047
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.59 GB
+
+============================================================
+📊 EPOCH 1180
+============================================================
+Loss:       7.2225
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3055 (want < 0.5)
+LR:         0.000045
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.59 GB
+
+============================================================
+📊 EPOCH 1190
+============================================================
+Loss:       7.2047
+N400:       loss=0.0047, acc=100.0%
+Diversity:  0.3231 (want < 0.5)
+LR:         0.000043
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.59 GB
+
+============================================================
+📊 EPOCH 1200
+============================================================
+Loss:       7.2006
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3437 (want < 0.5)
+LR:         0.000041
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.59 GB
+
+✅ NEW BEST LOSS: 7.2006
+💾 Checkpoint saved (epoch 1200)
+
+🎯 GENERATION TEST:
+  'the cat' → 'thL 's sparticity , the adaptation of se'
+  'hello world' → 'rypping to tone of wides , and influence'
+  'deep learning' → 'elimination other roads anion or into te'
+
+============================================================
+📊 EPOCH 1210
+============================================================
+Loss:       7.1620
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3327 (want < 0.5)
+LR:         0.000039
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.44 GB
+
+============================================================
+📊 EPOCH 1220
+============================================================
+Loss:       7.1984
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3070 (want < 0.5)
+LR:         0.000037
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.44 GB
+
+============================================================
+📊 EPOCH 1230
+============================================================
+Loss:       7.1846
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3196 (want < 0.5)
+LR:         0.000035
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.44 GB
+
+============================================================
+📊 EPOCH 1240
+============================================================
+Loss:       7.1694
+N400:       loss=0.0031, acc=100.0%
+Diversity:  0.3394 (want < 0.5)
+LR:         0.000033
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.44 GB
+
+============================================================
+📊 EPOCH 1250
+============================================================
+Loss:       7.2011
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3177 (want < 0.5)
+LR:         0.000032
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.44 GB
+💾 Checkpoint saved (epoch 1250)
+
+🎯 GENERATION TEST:
+  'the cat' → 'her education , the steam , where stats '
+  'hello world' → 'erm to be cou'te from by horrors of bact'
+  'deep learning' → 'elicimond interpretation in the accurati'
+
+============================================================
+📊 EPOCH 1260
+============================================================
+Loss:       7.1678
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3721 (want < 0.5)
+LR:         0.000030
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.46 GB
+
+============================================================
+📊 EPOCH 1270
+============================================================
+Loss:       7.1708
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.2868 (want < 0.5)
+LR:         0.000028
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.46 GB
+
+============================================================
+📊 EPOCH 1280
+============================================================
+Loss:       7.1610
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3212 (want < 0.5)
+LR:         0.000026
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.46 GB
+
+============================================================
+📊 EPOCH 1290
+============================================================
+Loss:       7.1287
+N400:       loss=0.0027, acc=100.0%
+Diversity:  0.3083 (want < 0.5)
+LR:         0.000025
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.46 GB
+
+============================================================
+📊 EPOCH 1300
+============================================================
+Loss:       7.1492
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3541 (want < 0.5)
+LR:         0.000023
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.46 GB
+
+✅ NEW BEST LOSS: 7.1492
+💾 Checkpoint saved (epoch 1300)
+
+🎯 GENERATION TEST:
+  'the cat' → 'delta from ball occurs by oncoming in th'
+  'hello world' → 'elden the bury response to furnimatin . '
+  'deep learning' → 'elternicable returning side expablement '
+
+============================================================
+📊 EPOCH 1310
+============================================================
+Loss:       7.1627
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.2845 (want < 0.5)
+LR:         0.000021
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.48 GB
+
+============================================================
+📊 EPOCH 1320
+============================================================
+Loss:       7.1322
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3284 (want < 0.5)
+LR:         0.000020
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.48 GB
+
+============================================================
+📊 EPOCH 1330
+============================================================
+Loss:       7.1257
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3134 (want < 0.5)
+LR:         0.000018
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.48 GB
+
+============================================================
+📊 EPOCH 1340
+============================================================
+Loss:       7.1597
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3250 (want < 0.5)
+LR:         0.000017
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.48 GB
+
+============================================================
+📊 EPOCH 1350
+============================================================
+Loss:       7.0650
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3049 (want < 0.5)
+LR:         0.000015
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.48 GB
+
+✅ NEW BEST LOSS: 7.0650
+💾 Checkpoint saved (epoch 1350)
+
+🎯 GENERATION TEST:
+  'the cat' → 'her essents are also adaptation . H. and'
+  'hello world' → 'out , or who shall does not pointed buyo'
+  'deep learning' → 'rictary characteristic servils of an org'
+
+============================================================
+📊 EPOCH 1360
+============================================================
+Loss:       7.1162
+N400:       loss=0.0018, acc=100.0%
+Diversity:  0.3457 (want < 0.5)
+LR:         0.000014
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 1370
+============================================================
+Loss:       7.1094
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3186 (want < 0.5)
+LR:         0.000013
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 1380
+============================================================
+Loss:       7.1348
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3408 (want < 0.5)
+LR:         0.000012
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 1390
+============================================================
+Loss:       7.1149
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3577 (want < 0.5)
+LR:         0.000010
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 1400
+============================================================
+Loss:       7.1453
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3162 (want < 0.5)
+LR:         0.000009
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.49 GB
+💾 Checkpoint saved (epoch 1400)
+
+🎯 GENERATION TEST:
+  'the cat' → 'th Daughter and holly b oar and date are'
+  'hello world' → 'ermit characag , four dinded at the plac'
+  'deep learning' → 'eligiano meanings and a press in obble a'
+
+============================================================
+📊 EPOCH 1410
+============================================================
+Loss:       7.1116
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3613 (want < 0.5)
+LR:         0.000008
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 1420
+============================================================
+Loss:       7.0994
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3687 (want < 0.5)
+LR:         0.000007
+Time:       0.5h elapsed, 23.5h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 1430
+============================================================
+Loss:       7.1331
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3417 (want < 0.5)
+LR:         0.000006
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 1440
+============================================================
+Loss:       7.0959
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3389 (want < 0.5)
+LR:         0.000006
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 1450
+============================================================
+Loss:       7.0931
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3016 (want < 0.5)
+LR:         0.000005
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.51 GB
+💾 Checkpoint saved (epoch 1450)
+
+🎯 GENERATION TEST:
+  'the cat' → 'her also cannot be used betworke and hol'
+  'hello world' → 'either crumming lyon , sometimes folly t'
+  'deep learning' → 'eliminate election only a placed interme'
+
+============================================================
+📊 EPOCH 1460
+============================================================
+Loss:       7.1336
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.4020 (want < 0.5)
+LR:         0.000004
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.46 GB
+
+============================================================
+📊 EPOCH 1470
+============================================================
+Loss:       7.1088
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3022 (want < 0.5)
+LR:         0.000003
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.46 GB
+
+============================================================
+📊 EPOCH 1480
+============================================================
+Loss:       7.1113
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3434 (want < 0.5)
+LR:         0.000003
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.46 GB
+
+============================================================
+📊 EPOCH 1490
+============================================================
+Loss:       7.1207
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3847 (want < 0.5)
+LR:         0.000002
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.46 GB
+
+============================================================
+📊 EPOCH 1500
+============================================================
+Loss:       7.1133
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3482 (want < 0.5)
+LR:         0.000002
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.46 GB
+💾 Checkpoint saved (epoch 1500)
+
+🎯 GENERATION TEST:
+  'the cat' → 'her all word wide , and by the burger , '
+  'hello world' → 'either the plumage the slam , enemies th'
+  'deep learning' → 'elaborate infrair in italics designated '
+
+============================================================
+📊 EPOCH 1510
+============================================================
+Loss:       7.0994
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3639 (want < 0.5)
+LR:         0.000002
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.48 GB
+
+============================================================
+📊 EPOCH 1520
+============================================================
+Loss:       7.0849
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3662 (want < 0.5)
+LR:         0.000001
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.48 GB
+
+============================================================
+📊 EPOCH 1530
+============================================================
+Loss:       7.0904
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3249 (want < 0.5)
+LR:         0.000001
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.48 GB
+
+============================================================
+📊 EPOCH 1540
+============================================================
+Loss:       7.0902
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3228 (want < 0.5)
+LR:         0.000001
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.48 GB
+
+============================================================
+📊 EPOCH 1550
+============================================================
+Loss:       7.0967
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3263 (want < 0.5)
+LR:         0.000100
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.48 GB
+💾 Checkpoint saved (epoch 1550)
+
+🎯 GENERATION TEST:
+  'the cat' → 'her bidges towns be a send of take , bar'
+  'hello world' → 'elginaum free year , but if staiNs and i'
+  'deep learning' → 'elecztes and method of anor are continuo'
+
+============================================================
+📊 EPOCH 1560
+============================================================
+Loss:       7.2191
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3399 (want < 0.5)
+LR:         0.000100
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 1570
+============================================================
+Loss:       7.2223
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3133 (want < 0.5)
+LR:         0.000100
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 1580
+============================================================
+Loss:       7.2072
+N400:       loss=0.0018, acc=100.0%
+Diversity:  0.3459 (want < 0.5)
+LR:         0.000100
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 1590
+============================================================
+Loss:       7.2150
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3396 (want < 0.5)
+LR:         0.000100
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 1600
+============================================================
+Loss:       7.2131
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3027 (want < 0.5)
+LR:         0.000100
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.49 GB
+💾 Checkpoint saved (epoch 1600)
+
+🎯 GENERATION TEST:
+  'the cat' → 'her ended were deverited to be mind . Th'
+  'hello world' → 'elychanic type wert is a function ; beat'
+  'deep learning' → 'else perforation , thinking and thermal '
+
+============================================================
+📊 EPOCH 1610
+============================================================
+Loss:       7.2007
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3330 (want < 0.5)
+LR:         0.000100
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 1620
+============================================================
+Loss:       7.2130
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3343 (want < 0.5)
+LR:         0.000100
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 1630
+============================================================
+Loss:       7.1722
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3056 (want < 0.5)
+LR:         0.000099
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 1640
+============================================================
+Loss:       7.1618
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3016 (want < 0.5)
+LR:         0.000099
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.51 GB
+
+============================================================
+📊 EPOCH 1650
+============================================================
+Loss:       7.1608
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3308 (want < 0.5)
+LR:         0.000099
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.51 GB
+💾 Checkpoint saved (epoch 1650)
+
+🎯 GENERATION TEST:
+  'the cat' → 'veck cavers and seven @-@ human is named'
+  'hello world' → 'electron , one observed ion , but one fo'
+  'deep learning' → 'else contains several markfample pages o'
+
+============================================================
+📊 EPOCH 1660
+============================================================
+Loss:       7.1480
+N400:       loss=0.0095, acc=100.0%
+Diversity:  0.3402 (want < 0.5)
+LR:         0.000099
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.52 GB
+
+============================================================
+📊 EPOCH 1670
+============================================================
+Loss:       7.0761
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.2838 (want < 0.5)
+LR:         0.000099
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.52 GB
+
+============================================================
+📊 EPOCH 1680
+============================================================
+Loss:       7.0883
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3169 (want < 0.5)
+LR:         0.000098
+Time:       0.6h elapsed, 23.4h left
+GPU Memory: 0.52 GB
+
+============================================================
+📊 EPOCH 1690
+============================================================
+Loss:       7.1346
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3348 (want < 0.5)
+LR:         0.000098
+Time:       0.7h elapsed, 23.3h left
+GPU Memory: 0.52 GB
+
+============================================================
+📊 EPOCH 1700
+============================================================
+Loss:       7.0690
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3060 (want < 0.5)
+LR:         0.000098
+Time:       0.7h elapsed, 23.3h left
+GPU Memory: 0.52 GB
+💾 Checkpoint saved (epoch 1700)
+
+🎯 GENERATION TEST:
+  'the cat' → 'reason the personnel der part , in the p'
+  'hello world' → 'elforth , approximation is the same redd'
+  'deep learning' → 'else centre in each colorhida , bands an'
+
+============================================================
+📊 EPOCH 1710
+============================================================
+Loss:       7.1247
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3113 (want < 0.5)
+LR:         0.000098
+Time:       0.7h elapsed, 23.3h left
+GPU Memory: 0.48 GB
+
+============================================================
+📊 EPOCH 1720
+============================================================
+Loss:       7.1025
+N400:       loss=0.0000, acc=100.0%
+Diversity:  0.3139 (want < 0.5)
+LR:         0.000097
+Time:       0.7h elapsed, 23.3h left
+GPU Memory: 0.48 GB
