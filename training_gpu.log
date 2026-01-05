@@ -1,0 +1,184 @@
+
+======================================================================
+🧠 24-HOUR GPU TRAINING - BRAIN LANGUAGE SYSTEM
+======================================================================
+
+✅ GPU: NVIDIA GeForce RTX 4080 SUPER
+✅ VRAM: 16.7 GB
+Loading English data from wikitext_en.txt...
+✓ Loaded 101463 English sentences
+Loading German data from wiki_de.txt...
+✓ Loaded 9636 German sentences
+
+Initializing Brain Language System...
+✓ Model parameters: 23,291,393
+
+======================================================================
+🚀 STARTING 24-HOUR TRAINING
+   Batch size: 64
+   Batches/epoch: 100
+   English sentences: 101463
+   German sentences: 9636
+======================================================================
+
+
+✅ NEW BEST LOSS: 13.0911
+💾 Checkpoint saved (epoch 1)
+
+✅ NEW BEST LOSS: 10.7639
+💾 Checkpoint saved (epoch 2)
+
+✅ NEW BEST LOSS: 10.0614
+💾 Checkpoint saved (epoch 5)
+
+============================================================
+📊 EPOCH 10
+============================================================
+Loss:       9.6952
+N400:       loss=0.8355, acc=50.0%
+Diversity:  0.8744 (want < 0.5)
+LR:         0.000091
+Time:       0.0h elapsed, 24.0h left
+GPU Memory: 0.47 GB
+
+✅ NEW BEST LOSS: 9.5319
+💾 Checkpoint saved (epoch 15)
+
+============================================================
+📊 EPOCH 20
+============================================================
+Loss:       9.4358
+N400:       loss=0.8369, acc=52.5%
+Diversity:  0.8139 (want < 0.5)
+LR:         0.000066
+Time:       0.0h elapsed, 24.0h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 30
+============================================================
+Loss:       9.2948
+N400:       loss=0.8314, acc=52.5%
+Diversity:  0.8089 (want < 0.5)
+LR:         0.000035
+Time:       0.0h elapsed, 24.0h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 40
+============================================================
+Loss:       9.2245
+N400:       loss=0.6725, acc=80.0%
+Diversity:  0.7772 (want < 0.5)
+LR:         0.000010
+Time:       0.0h elapsed, 24.0h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 50
+============================================================
+Loss:       9.2079
+N400:       loss=0.5409, acc=75.0%
+Diversity:  0.7805 (want < 0.5)
+LR:         0.000100
+Time:       0.0h elapsed, 24.0h left
+GPU Memory: 0.49 GB
+
+✅ NEW BEST LOSS: 9.2079
+💾 Checkpoint saved (epoch 50)
+
+🎯 GENERATION TEST:
+  'the cat' → 'reato the tell of an the tere singent in'
+  'hello world' → 'ist plarearciame the carid as is erody t'
+  'deep learning' → 'nord of the rage of pilmer the sacees th'
+
+============================================================
+📊 EPOCH 60
+============================================================
+Loss:       9.0808
+N400:       loss=0.4715, acc=85.0%
+Diversity:  0.7036 (want < 0.5)
+LR:         0.000098
+Time:       0.0h elapsed, 24.0h left
+GPU Memory: 0.46 GB
+
+============================================================
+📊 EPOCH 70
+============================================================
+Loss:       8.9283
+N400:       loss=0.6347, acc=72.5%
+Diversity:  0.7224 (want < 0.5)
+LR:         0.000091
+Time:       0.0h elapsed, 24.0h left
+GPU Memory: 0.46 GB
+
+============================================================
+📊 EPOCH 80
+============================================================
+Loss:       8.8206
+N400:       loss=0.4618, acc=80.0%
+Diversity:  0.6667 (want < 0.5)
+LR:         0.000080
+Time:       0.0h elapsed, 24.0h left
+GPU Memory: 0.46 GB
+
+✅ NEW BEST LOSS: 8.7426
+💾 Checkpoint saved (epoch 89)
+
+============================================================
+📊 EPOCH 90
+============================================================
+Loss:       8.7294
+N400:       loss=0.4470, acc=77.5%
+Diversity:  0.5986 (want < 0.5)
+LR:         0.000066
+Time:       0.0h elapsed, 24.0h left
+GPU Memory: 0.48 GB
+
+============================================================
+📊 EPOCH 100
+============================================================
+Loss:       8.6727
+N400:       loss=0.3523, acc=85.0%
+Diversity:  0.6703 (want < 0.5)
+LR:         0.000051
+Time:       0.0h elapsed, 24.0h left
+GPU Memory: 0.48 GB
+
+✅ NEW BEST LOSS: 8.6727
+💾 Checkpoint saved (epoch 100)
+
+🎯 GENERATION TEST:
+  'the cat' → 'holeward serectured at sets to malic mas'
+  'hello world' → 'is excent for matismed an the field were'
+  'deep learning' → 'or constaining is the freect with peles '
+
+============================================================
+📊 EPOCH 110
+============================================================
+Loss:       8.6383
+N400:       loss=0.2816, acc=87.5%
+Diversity:  0.6300 (want < 0.5)
+LR:         0.000035
+Time:       0.0h elapsed, 24.0h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 120
+============================================================
+Loss:       8.6020
+N400:       loss=0.2352, acc=85.0%
+Diversity:  0.6301 (want < 0.5)
+LR:         0.000021
+Time:       0.0h elapsed, 24.0h left
+GPU Memory: 0.49 GB
+
+============================================================
+📊 EPOCH 130
+============================================================
+Loss:       8.5734
+N400:       loss=0.2251, acc=90.0%
+Diversity:  0.6724 (want < 0.5)
+LR:         0.000010
+Time:       0.1h elapsed, 23.9h left
+GPU Memory: 0.49 GB

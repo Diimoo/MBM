@@ -8,30 +8,12 @@
   },
   "experiments": {
     "n400": {
-      "cases": [
-        {
-          "context": "the cat sat on the",
-          "word": "mat",
-          "expectation": "Expected",
-          "surprise": 152.97695922851562
-        },
-        {
-          "context": "the cat sat on the",
-          "word": "fish",
-          "expectation": "Unexpected",
-          "surprise": 152.97695922851562
-        },
-        {
-          "context": "the bird flew in the",
-          "word": "sky",
-          "expectation": "Expected",
-          "surprise": 152.97695922851562
-        },
-        {
-          "context": "the bird flew in the",
-          "word": "table",
-          "expectation": "Unexpected",
-          "surprise": 152.97695922851562
-        }
-      ],
-      "effect_detected": 
+      "effect_detected": true,
+      "expected_avg": 109.98667526245117,
+      "unexpected_avg": 111.50946426391602
+    },
+    "cross_lingual": {
+      "average_similarity": 0.885367214679718
+    }
+  }
+}

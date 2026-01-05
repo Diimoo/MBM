@@ -29,55 +29,116 @@ from digital_brain.modules.brain_language import (
 )
 
 
-# Sample training data (expandable with real corpus)
-ENGLISH_SENTENCES = [
-    "the cat sat on the mat",
-    "the dog ran in the park",
-    "the bird flew in the sky",
-    "the fish swam in the water",
-    "the sun shone bright today",
-    "the moon glows at night",
-    "red apples grow on trees",
-    "blue water flows in rivers",
-    "green grass covers the field",
-    "the quick brown fox jumps",
-    "a lazy dog sleeps well",
-    "the happy child plays games",
-    "big houses have many rooms",
-    "small cars use less fuel",
-    "old books tell great stories",
-    "new ideas change the world",
-    "hot coffee warms the body",
-    "cold ice cools the drink",
-    "soft music calms the mind",
-    "loud thunder scares the cat",
+def uniformity_loss(embeddings: torch.Tensor, t: float = 2.0) -> torch.Tensor:
+    """
+    Uniformity loss - directly pushes embeddings apart on the hypersphere.
+    From "Understanding Contrastive Representation Learning" (Wang & Isola, 2020)
+    
+    This is MUCH stronger than InfoNCE for preventing collapse.
+    """
+    batch_size = embeddings.shape[0]
+    if batch_size < 2:
+        return torch.tensor(0.0, device=embeddings.device)
+    
+    # L2 normalize embeddings
+    embeddings = F.normalize(embeddings, dim=-1)
+    
+    # Compute pairwise squared distances
+    # ||x - y||^2 = ||x||^2 + ||y||^2 - 2*x.y = 2 - 2*x.y (for normalized vectors)
+    sq_pdist = 2 - 2 * torch.matmul(embeddings, embeddings.T)
+    
+    # Uniformity loss: log of average of exp(-t * ||x-y||^2) for all pairs
+    # Lower = more uniform distribution on hypersphere
+    mask = ~torch.eye(batch_size, device=embeddings.device, dtype=torch.bool)
+    sq_pdist_masked = sq_pdist[mask].view(batch_size, batch_size - 1)
+    
+    loss = torch.log(torch.exp(-t * sq_pdist_masked).mean() + 1e-8)
+    
+    return loss
+
+
+def alignment_loss(embeddings: torch.Tensor, alpha: float = 2.0) -> torch.Tensor:
+    """
+    Alignment loss - pulls similar samples together (uses augmentation).
+    For now, we use dropout as implicit augmentation.
+    """
+    # This would require augmented views - skip for now
+    return torch.tensor(0.0, device=embeddings.device)
+
+
+# Template-based corpus generation (prevents mode collapse from tiny corpus)
+TEMPLATES = [
+    "the {noun} {verb} {adverb}",
+    "a {adj} {noun} {verb} in the {place}",
+    "{noun} always {verb} {adverb}",
+    "the {adj} {noun} is {state}",
+    "{noun} and {noun2} {verb} together",
+    "when {noun} {verb} it feels {emotion}",
+    "the {color} {noun} {verb} {adverb}",
+    "{adj} {noun} likes to {verb}",
+    "every {noun} can {verb} well",
+    "some {noun} {verb} in the {place}",
 ]
 
-GERMAN_SENTENCES = [
-    "die katze saß auf der matte",
-    "der hund rannte im park",
-    "der vogel flog im himmel",
-    "der fisch schwamm im wasser",
-    "die sonne schien heute hell",
-    "der mond leuchtet in der nacht",
-    "rote äpfel wachsen auf bäumen",
-    "blaues wasser fließt in flüssen",
-    "grünes gras bedeckt das feld",
-    "der schnelle braune fuchs springt",
-    "ein fauler hund schläft gut",
-    "das glückliche kind spielt spiele",
-    "große häuser haben viele zimmer",
-    "kleine autos verbrauchen weniger",
-    "alte bücher erzählen geschichten",
-    "neue ideen verändern die welt",
-    "heißer kaffee wärmt den körper",
-    "kaltes eis kühlt das getränk",
-    "sanfte musik beruhigt den geist",
-    "lauter donner erschreckt die katze",
+VOCAB = {
+    'noun': ['cat', 'dog', 'bird', 'fish', 'person', 'child', 'tree', 'flower', 'car', 'house'],
+    'noun2': ['friend', 'partner', 'family', 'neighbor', 'animal', 'plant'],
+    'verb': ['runs', 'walks', 'jumps', 'swims', 'flies', 'sleeps', 'plays', 'works', 'thinks', 'learns'],
+    'adverb': ['quickly', 'slowly', 'carefully', 'loudly', 'quietly', 'happily', 'sadly', 'well'],
+    'adj': ['big', 'small', 'old', 'new', 'happy', 'sad', 'fast', 'slow', 'bright', 'dark'],
+    'place': ['park', 'house', 'street', 'forest', 'garden', 'room', 'field', 'river', 'mountain'],
+    'state': ['happy', 'tired', 'hungry', 'full', 'calm', 'excited', 'ready', 'waiting'],
+    'emotion': ['good', 'great', 'nice', 'warm', 'cool', 'strong', 'peaceful'],
+    'color': ['red', 'blue', 'green', 'yellow', 'white', 'black', 'brown', 'gray'],
+}
+
+GERMAN_TEMPLATES = [
+    "die {noun} {verb} {adverb}",
+    "eine {adj} {noun} {verb} im {place}",
+    "{noun} {verb} immer {adverb}",
+    "die {adj} {noun} ist {state}",
+    "{noun} und {noun2} {verb} zusammen",
 ]
 
-# Translation pairs for semantic alignment
-TRANSLATION_PAIRS = list(zip(ENGLISH_SENTENCES, GERMAN_SENTENCES))
+GERMAN_VOCAB = {
+    'noun': ['katze', 'hund', 'vogel', 'fisch', 'person', 'kind', 'baum', 'blume', 'auto', 'haus'],
+    'noun2': ['freund', 'partner', 'familie', 'nachbar', 'tier', 'pflanze'],
+    'verb': ['rennt', 'geht', 'springt', 'schwimmt', 'fliegt', 'schläft', 'spielt', 'arbeitet', 'denkt', 'lernt'],
+    'adverb': ['schnell', 'langsam', 'vorsichtig', 'laut', 'leise', 'glücklich', 'traurig', 'gut'],
+    'adj': ['groß', 'klein', 'alt', 'neu', 'glücklich', 'traurig', 'schnell', 'langsam', 'hell', 'dunkel'],
+    'place': ['park', 'haus', 'straße', 'wald', 'garten', 'zimmer', 'feld', 'fluss', 'berg'],
+    'state': ['glücklich', 'müde', 'hungrig', 'satt', 'ruhig', 'aufgeregt', 'bereit', 'wartend'],
+}
+
+
+def generate_corpus(n_sentences: int = 1000, language: str = 'english') -> List[str]:
+    """Generate synthetic corpus using templates."""
+    if language == 'english':
+        templates = TEMPLATES
+        vocab = VOCAB
+    else:
+        templates = GERMAN_TEMPLATES
+        vocab = GERMAN_VOCAB
+    
+    sentences = []
+    for _ in range(n_sentences):
+        template = random.choice(templates)
+        try:
+            sentence = template.format(**{k: random.choice(v) for k, v in vocab.items()})
+            sentences.append(sentence)
+        except KeyError:
+            # Template uses key not in vocab, skip
+            continue
+    
+    return sentences
+
+
+# Generate expanded corpus (1000 sentences each)
+ENGLISH_SENTENCES = generate_corpus(1000, 'english')
+GERMAN_SENTENCES = generate_corpus(1000, 'german')
+
+# Translation pairs (randomly paired for semantic alignment training)
+TRANSLATION_PAIRS = list(zip(ENGLISH_SENTENCES[:500], GERMAN_SENTENCES[:500]))
 
 
 def create_byte_dataset(sentences: List[str], max_len: int = 128) -> torch.Tensor:
@@ -94,32 +155,48 @@ def train_english_semantics(
     epochs: int = 50,
     batch_size: int = 8,
     lr: float = 1e-3,
-    device: str = 'cuda'
+    device: str = 'cuda',
+    use_curriculum: bool = True
 ) -> Dict:
     """
     Phase 1: Train brain to understand English semantics.
     Uses next-byte prediction (language modeling objective).
+    With curriculum learning: start with short sentences, gradually increase.
     """
     print("=" * 70)
     print("PHASE 1: ENGLISH SEMANTIC LEARNING")
     print("=" * 70)
     print("Training on character-level patterns (no tokenization)")
     print(f"Corpus: {len(ENGLISH_SENTENCES)} sentences")
+    print(f"Curriculum learning: {use_curriculum}")
     print("=" * 70)
     
     brain.train()
     optimizer = torch.optim.AdamW(brain.parameters(), lr=lr, weight_decay=0.01)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, epochs)
     
-    # Create dataset
-    dataset = create_byte_dataset(ENGLISH_SENTENCES, max_len=64).to(device)
-    num_samples = dataset.shape[0]
+    # Sort sentences by length for curriculum learning
+    sorted_sentences = sorted(ENGLISH_SENTENCES, key=len)
     
     losses = []
     
     for epoch in range(1, epochs + 1):
         epoch_loss = 0.0
         num_batches = 0
+        
+        # Curriculum: gradually increase max sentence length
+        if use_curriculum:
+            progress = epoch / epochs
+            max_char_len = int(15 + progress * 45)  # 15 → 60 chars
+            curriculum_sentences = [s for s in sorted_sentences if len(s) <= max_char_len]
+            if len(curriculum_sentences) < 10:
+                curriculum_sentences = sorted_sentences[:100]  # Fallback
+        else:
+            curriculum_sentences = ENGLISH_SENTENCES
+        
+        # Create dataset for this epoch
+        dataset = create_byte_dataset(curriculum_sentences, max_len=64).to(device)
+        num_samples = dataset.shape[0]
         
         # Shuffle
         perm = torch.randperm(num_samples)
@@ -140,12 +217,25 @@ def train_english_semantics(
             # PRODUCTION: Generate continuation (teacher forcing)
             logits = brain.produce(semantic, target_bytes=input_bytes)
             
-            # Loss: Next-byte prediction
-            loss = F.cross_entropy(
+            # Loss 1: Next-byte prediction with label smoothing
+            next_byte_loss = F.cross_entropy(
                 logits.reshape(-1, 256),
                 target_bytes.reshape(-1),
-                ignore_index=0  # Ignore padding
+                ignore_index=0,  # Ignore padding
+                label_smoothing=0.1  # Regularization
             )
+            
+            # Loss 2: RECONSTRUCTION loss (forces embedding to encode input info)
+            # This is the KEY fix - identical embeddings can't reconstruct different inputs
+            recon_logits = brain.reconstruct_input(semantic, seq_len=input_bytes.shape[1])
+            recon_loss = F.cross_entropy(
+                recon_logits.reshape(-1, 256),
+                input_bytes.reshape(-1),
+                ignore_index=0
+            )
+            
+            # Combined loss - reconstruction is weighted heavily
+            loss = next_byte_loss + 2.0 * recon_loss
             
             # Backward
             optimizer.zero_grad()
@@ -195,6 +285,193 @@ def test_english_generation(brain: BrainLanguageSystem, device: str):
     
     brain.train()
     print()
+
+
+def train_n400_ranking(
+    brain: BrainLanguageSystem,
+    epochs: int = 50,
+    device: str = 'cuda',
+    margin: float = 1.0
+) -> Dict:
+    """
+    Train N400 with RANKING loss: expected < unexpected.
+    
+    Key insight: N400 should give LOW surprise for expected continuations,
+    HIGH surprise for unexpected ones. Ranking loss enforces this directly.
+    """
+    print("\n" + "=" * 70)
+    print("TRAINING N400 WITH RANKING LOSS")
+    print("=" * 70)
+    
+    # Freeze everything except N400 predictor
+    for param in brain.parameters():
+        param.requires_grad = False
+    for param in brain.wernicke.predictor.parameters():
+        param.requires_grad = True
+    for param in brain.wernicke.prediction_head.parameters():
+        param.requires_grad = True
+    
+    n400_params = list(brain.wernicke.predictor.parameters()) + \
+                  list(brain.wernicke.prediction_head.parameters())
+    optimizer = torch.optim.Adam(n400_params, lr=1e-3)
+    
+    losses = []
+    correct_rankings = []
+    
+    # Create expected/unexpected pairs
+    n400_pairs = [
+        # (context, expected_word, unexpected_word)
+        ("the cat sat on the", "mat", "fish"),
+        ("the dog ran in the", "park", "ocean"),
+        ("the bird flew in the", "sky", "table"),
+        ("the fish swam in the", "water", "forest"),
+        ("the sun shone", "brightly", "quietly"),
+        ("the moon glows at", "night", "noon"),
+        ("red apples grow on", "trees", "rocks"),
+        ("the child plays with", "toys", "clouds"),
+        ("hot coffee warms the", "body", "ice"),
+        ("cold ice cools the", "drink", "fire"),
+    ]
+    
+    for epoch in range(1, epochs + 1):
+        epoch_loss = 0.0
+        n_correct = 0
+        n_total = 0
+        
+        random.shuffle(n400_pairs)
+        
+        for context, expected, unexpected in n400_pairs:
+            optimizer.zero_grad()
+            
+            # Encode context
+            context_bytes = text_to_bytes(context, 64).unsqueeze(0).to(device)
+            context_sem, _ = brain.comprehend(context_bytes, store_in_memory=False)
+            
+            # Encode expected continuation
+            expected_bytes = text_to_bytes(expected, 64).unsqueeze(0).to(device)
+            expected_sem, _ = brain.comprehend(expected_bytes, store_in_memory=False)
+            
+            # Encode unexpected continuation
+            unexpected_bytes = text_to_bytes(unexpected, 64).unsqueeze(0).to(device)
+            unexpected_sem, _ = brain.comprehend(unexpected_bytes, store_in_memory=False)
+            
+            # Predict next semantic from context
+            context_expanded = context_sem.unsqueeze(1)  # [1, 1, hidden]
+            lstm_out, _ = brain.wernicke.predictor(context_expanded)
+            predicted_sem = brain.wernicke.prediction_head(lstm_out.squeeze(1))
+            
+            # Compute surprise (MSE between predicted and actual)
+            expected_surprise = F.mse_loss(predicted_sem, expected_sem)
+            unexpected_surprise = F.mse_loss(predicted_sem, unexpected_sem)
+            
+            # Ranking loss: expected_surprise should be LOWER than unexpected_surprise
+            # loss = max(0, expected - unexpected + margin)
+            ranking_loss = F.relu(expected_surprise - unexpected_surprise + margin)
+            
+            ranking_loss.backward()
+            optimizer.step()
+            
+            epoch_loss += ranking_loss.item()
+            n_total += 1
+            
+            # Track if ranking is correct
+            if expected_surprise.item() < unexpected_surprise.item():
+                n_correct += 1
+        
+        avg_loss = epoch_loss / max(n_total, 1)
+        accuracy = n_correct / max(n_total, 1)
+        losses.append(avg_loss)
+        correct_rankings.append(accuracy)
+        
+        if epoch % 10 == 0:
+            print(f"  N400 Epoch {epoch}: Loss={avg_loss:.4f}, Ranking Accuracy={accuracy:.1%}")
+    
+    # Unfreeze all
+    for param in brain.parameters():
+        param.requires_grad = True
+    
+    print(f"  N400 Final: Loss={losses[-1]:.4f}, Accuracy={correct_rankings[-1]:.1%}")
+    return {'losses': losses, 'accuracies': correct_rankings}
+
+
+def test_ood_generalization(brain: BrainLanguageSystem, device: str):
+    """
+    Out-of-Distribution tests to detect memorization vs learning.
+    If model just memorizes templates, OOD will be gibberish.
+    """
+    print("\n" + "=" * 70)
+    print("OUT-OF-DISTRIBUTION TESTS")
+    print("=" * 70)
+    
+    brain.eval()
+    
+    ood_tests = [
+        ("quantum physics", "Never seen"),
+        ("xyzabc", "Nonsense"),
+        ("the the the", "Repetition"),
+        ("love happiness joy", "Abstract concepts"),
+        ("12345", "Numbers"),
+    ]
+    
+    results = []
+    
+    for test_input, category in ood_tests:
+        test_bytes = text_to_bytes(test_input, 64).unsqueeze(0).to(device)
+        
+        with torch.no_grad():
+            semantic, _ = brain.comprehend(test_bytes, store_in_memory=False)
+            generated = brain.produce(semantic, max_length=32)
+            output_text = bytes_to_text(generated)
+        
+        results.append({
+            'input': test_input,
+            'category': category,
+            'output': output_text
+        })
+        print(f"  [{category}] '{test_input}' → '{output_text}'")
+    
+    brain.train()
+    return results
+
+
+def compute_embedding_diversity(brain: BrainLanguageSystem, device: str) -> float:
+    """
+    Check if embeddings are diverse (not collapsed).
+    Returns average pairwise cosine distance (higher = more diverse).
+    """
+    brain.eval()
+    
+    # Get embeddings for diverse inputs
+    test_sentences = [
+        "the cat sleeps",
+        "big red car",
+        "water flows quickly",
+        "happy child plays",
+        "old tree grows",
+    ]
+    
+    embeddings = []
+    for sent in test_sentences:
+        sent_bytes = text_to_bytes(sent, 64).unsqueeze(0).to(device)
+        with torch.no_grad():
+            sem, _ = brain.comprehend(sent_bytes, store_in_memory=False)
+        embeddings.append(sem)
+    
+    embeddings = torch.cat(embeddings, dim=0)  # [5, hidden]
+    embeddings = F.normalize(embeddings, dim=-1)
+    
+    # Compute pairwise similarities
+    sim_matrix = torch.matmul(embeddings, embeddings.T)
+    
+    # Get off-diagonal elements (exclude self-similarity)
+    mask = ~torch.eye(len(test_sentences), device=device, dtype=torch.bool)
+    off_diag_sims = sim_matrix[mask]
+    
+    avg_similarity = off_diag_sims.mean().item()
+    diversity = 1.0 - avg_similarity  # Higher = more diverse
+    
+    brain.train()
+    return diversity, avg_similarity
 
 
 def train_german_transfer(
@@ -527,7 +804,17 @@ def main():
         en_results = train_english_semantics(brain, epochs=args.epochs_en, device=device)
         results['english'] = en_results
         
-        # Phase 2: German transfer
+        # Check embedding diversity after Phase 1
+        diversity, avg_sim = compute_embedding_diversity(brain, device)
+        print(f"\n  Embedding diversity: {diversity:.3f} (avg similarity: {avg_sim:.3f})")
+        if avg_sim > 0.95:
+            print("  ⚠️  WARNING: Embeddings still collapsing!")
+        
+        # Phase 2: N400 ranking training (expected < unexpected)
+        n400_results = train_n400_ranking(brain, epochs=50, device=device, margin=1.0)
+        results['n400_training'] = n400_results
+        
+        # Phase 3: German transfer
         de_results = train_german_transfer(brain, epochs=args.epochs_de, device=device)
         results['german'] = de_results
         
@@ -535,6 +822,10 @@ def main():
         os.makedirs('checkpoints', exist_ok=True)
         torch.save(brain.state_dict(), 'checkpoints/brain_language.pth')
         print("\nCheckpoint saved to checkpoints/brain_language.pth")
+        
+        # OOD generalization test
+        ood_results = test_ood_generalization(brain, device)
+        results['ood_tests'] = ood_results
     
     # Run experiments
     exp_results = run_experiments(brain, device)

@@ -100,10 +100,13 @@ class SemanticAbstraction(nn.Module):
     """
     
     def __init__(self, d_pattern: int = 256, d_semantic: int = 512, 
-                 num_abstraction_levels: int = 5):
+                 num_abstraction_levels: int = 5, dropout: float = 0.3):
         super().__init__()
         self.d_semantic = d_semantic
         self.num_levels = num_abstraction_levels
+        
+        # Input dropout (regularization against mode collapse)
+        self.input_dropout = nn.Dropout(dropout)
         
         # Multi-level abstraction hierarchy (like cortical layers)
         self.abstraction_levels = nn.ModuleList([
@@ -111,8 +114,9 @@ class SemanticAbstraction(nn.Module):
                 nn.Linear(d_pattern if i == 0 else d_semantic, d_semantic),
                 nn.LayerNorm(d_semantic),
                 nn.GELU(),
-                nn.Dropout(0.1),
-                nn.Linear(d_semantic, d_semantic)
+                nn.Dropout(dropout),  # Increased dropout
+                nn.Linear(d_semantic, d_semantic),
+                nn.Dropout(dropout * 0.5)  # Additional dropout
             )
             for i in range(num_abstraction_levels)
         ])
@@ -137,9 +141,11 @@ class SemanticAbstraction(nn.Module):
         else:
             level = float(abstraction_level)
         
+        # Apply input dropout for regularization
+        x = self.input_dropout(patterns)
+        
         # Process through abstraction hierarchy
         representations = []
-        x = patterns
         
         for i, layer in enumerate(self.abstraction_levels):
             x = layer(x)
@@ -216,52 +222,60 @@ class AssociativeSemanticNetwork(nn.Module):
             activated_semantic: [batch, d_semantic] with associations activated
             concept_activation: [batch, num_concepts] activation pattern
         """
-        # Match input to concept nodes (soft retrieval)
-        # Cosine similarity to find relevant concepts
-        input_norm = F.normalize(semantic_input, dim=-1)
-        embed_norm = F.normalize(self.concept_embeddings, dim=-1)
+        # Match input to concept nodes using LEARNED projection (not just cosine)
+        # This preserves input diversity better than pure cosine similarity
+        input_proj = torch.matmul(semantic_input, self.concept_embeddings.T)  # [batch, num_concepts]
         
-        similarities = torch.matmul(input_norm, embed_norm.T)  # [batch, num_concepts]
-        
-        # Initial activation (soft attention over concepts)
-        activation = torch.softmax(similarities * 5.0, dim=-1)  # Temperature scaling
+        # Use ReLU + L2 norm instead of softmax (avoids peaked collapse)
+        activation = F.relu(input_proj)
+        activation = activation / (activation.norm(dim=-1, keepdim=True) + 1e-8)
         
         # Spreading activation through associative network
-        assoc_weights = torch.sigmoid(self.associations)  # Positive connections
+        assoc_weights = torch.tanh(self.associations)  # Allow negative associations
         
         for _ in range(num_activation_steps):
             # Hebbian spreading: concepts activate related concepts
             spread = torch.matmul(activation, assoc_weights)
-            activation = activation + 0.3 * spread
-            activation = torch.sigmoid(activation * 2 - 1)  # Normalize
+            # Residual connection to preserve original activation
+            activation = 0.7 * activation + 0.3 * F.relu(spread)
+            activation = activation / (activation.norm(dim=-1, keepdim=True) + 1e-8)
         
         # Project activated concepts back to semantic space
-        activated_semantic = self.semantic_projection(activation)
+        # Add residual from original input to preserve diversity
+        activated_semantic = self.semantic_projection(activation) + 0.5 * semantic_input
         
         return activated_semantic, activation
     
     def hebbian_update(self, activation_pattern: torch.Tensor):
         """
-        Update associations using Hebbian rule.
-        "Cells that fire together, wire together"
+        Update associations using Oja's rule (self-normalizing Hebbian).
+        Prevents weight explosion while maintaining associative learning.
+        
+        Oja's Rule: Δw_ij = η * (y_i * y_j - w_ij * y_i²)
         
         Args:
             activation_pattern: [batch, num_concepts]
         """
         with torch.no_grad():
-            # Compute co-activation across batch
-            # [batch, num_concepts] → correlation matrix
-            act_centered = activation_pattern - activation_pattern.mean(dim=0, keepdim=True)
+            # Average activation across batch
+            act_mean = activation_pattern.mean(dim=0)  # [num_concepts]
             
-            # Outer product gives co-activation
-            co_activation = torch.matmul(act_centered.T, act_centered) / activation_pattern.shape[0]
+            # Oja's rule: self-normalizing Hebbian update
+            # Outer product for co-activation
+            outer = torch.outer(act_mean, act_mean)  # [num_concepts, num_concepts]
             
-            # Hebbian update with decay (prevents runaway growth)
-            delta = self.hebbian_lr * co_activation - self.hebbian_decay * self.associations
+            # Self-normalizing term (prevents divergence)
+            norm_term = self.associations * (act_mean.unsqueeze(0) ** 2)
+            
+            # Oja's update
+            delta = self.hebbian_lr * (outer - norm_term)
             self.associations.add_(delta)
             
-            # Keep associations bounded
-            self.associations.data.clamp_(-2.0, 2.0)
+            # Exponential decay for stability
+            self.associations.mul_(1.0 - self.hebbian_decay)
+            
+            # Soft clipping (smoother than hard clamp)
+            self.associations.data = torch.tanh(self.associations.data) * 2.0
 
 
 class WernickeComprehension(nn.Module):
@@ -384,7 +398,9 @@ class BrocaProduction(nn.Module):
         
     def forward(self, semantic_concept: torch.Tensor,
                 target_bytes: Optional[torch.Tensor] = None,
-                max_length: int = 256) -> torch.Tensor:
+                max_length: int = 256,
+                temperature: float = 1.0,
+                top_k: int = 10) -> torch.Tensor:
         """
         Args:
             semantic_concept: [batch, d_semantic] what to express
@@ -453,12 +469,17 @@ class BrocaProduction(nn.Module):
                 # Get next byte
                 logits = self.to_bytes(output_gated)
                 
-                # Sample or argmax
-                if self.training:
-                    probs = F.softmax(logits, dim=-1)
-                    current_byte = torch.multinomial(probs, 1).squeeze(-1)
+                # Top-k sampling with temperature (prevents mode collapse)
+                probs = F.softmax(logits / temperature, dim=-1)
+                
+                # Top-k filtering
+                if top_k > 0:
+                    top_probs, top_indices = torch.topk(probs, min(top_k, probs.size(-1)))
+                    top_probs = top_probs / top_probs.sum(dim=-1, keepdim=True)  # Renormalize
+                    sampled_idx = torch.multinomial(top_probs, 1).squeeze(-1)
+                    current_byte = top_indices.gather(-1, sampled_idx.unsqueeze(-1)).squeeze(-1)
                 else:
-                    current_byte = torch.argmax(logits, dim=-1)
+                    current_byte = torch.multinomial(probs, 1).squeeze(-1)
                 
                 generated.append(current_byte)
                 
@@ -509,9 +530,10 @@ class HippocampalSemanticMemory(nn.Module):
                 self.memory_keys[ptr] = key
                 self.memory_values[ptr] = value
                 
-                # Update pointer (circular buffer)
-                self.write_ptr = (self.write_ptr + 1) % self.capacity
-                self.memory_size = min(self.memory_size + 1, self.capacity)
+                # Update pointer (circular buffer) - keep as tensor
+                self.write_ptr.fill_((ptr + 1) % self.capacity)
+                new_size = min(self.memory_size.item() + 1, self.capacity)
+                self.memory_size.fill_(new_size)
     
     def retrieve(self, query: torch.Tensor, k: int = 5) -> torch.Tensor:
         """Retrieve top-k similar memories."""
@@ -575,6 +597,17 @@ class BrainLanguageSystem(nn.Module):
         # Semantic memory (Hippocampus)
         self.hippocampus = HippocampalSemanticMemory(d_semantic, memory_capacity)
         
+        # Reconstruction decoder (forces embedding diversity)
+        # semantic → original input bytes (autoencoder constraint)
+        self.reconstructor = nn.Sequential(
+            nn.Linear(d_semantic, d_hidden),
+            nn.GELU(),
+            nn.Linear(d_hidden, d_hidden),
+            nn.GELU(),
+            nn.Linear(d_hidden, 64 * 64),  # 64 positions × 64 embed dim
+        )
+        self.recon_to_bytes = nn.Linear(64, 256)  # project to byte logits
+        
         self.d_semantic = d_semantic
         
     def comprehend(self, text_bytes: torch.Tensor,
@@ -605,6 +638,32 @@ class BrainLanguageSystem(nn.Module):
         Semantic concept → character sequence
         """
         return self.broca(semantic_concept, target_bytes, max_length)
+    
+    def reconstruct_input(self, semantic: torch.Tensor, seq_len: int = 64) -> torch.Tensor:
+        """
+        Reconstruct original input bytes from semantic embedding.
+        This forces the embedding to encode input-specific information.
+        
+        Returns:
+            logits: [batch, seq_len, 256] byte logits
+        """
+        batch_size = semantic.shape[0]
+        
+        # Decode semantic to sequence of embeddings
+        decoded = self.reconstructor(semantic)  # [batch, 64*64]
+        decoded = decoded.view(batch_size, 64, 64)  # [batch, 64, 64]
+        
+        # Truncate or pad to seq_len
+        if decoded.shape[1] > seq_len:
+            decoded = decoded[:, :seq_len, :]
+        elif decoded.shape[1] < seq_len:
+            padding = torch.zeros(batch_size, seq_len - decoded.shape[1], 64, device=semantic.device)
+            decoded = torch.cat([decoded, padding], dim=1)
+        
+        # Project to byte logits
+        logits = self.recon_to_bytes(decoded)  # [batch, seq_len, 256]
+        
+        return logits
     
     def understand_and_respond(self, input_bytes: torch.Tensor,
                                response_intent: Optional[torch.Tensor] = None,
