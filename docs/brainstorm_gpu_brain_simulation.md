@@ -1,7 +1,6 @@
 # GPU-Efficient Brain Simulation: Brainstorming Session
 
-**Date:** January 6, 2026  
-**Participants:** Ahmed, Cascade  
+**Date:** January 6, 2026
 **Goal:** Design a biologically accurate brain simulation that runs efficiently on consumer GPUs
 
 ---
