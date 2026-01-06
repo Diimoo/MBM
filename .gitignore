@@ -4,4 +4,6 @@ checkpoints/
 backups_pth/
 __pycache__/
 .venv/
-
+*.log
+*.txt
+*.pid

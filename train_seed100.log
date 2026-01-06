@@ -1,4 +1,0 @@
-Using device: cuda
-Parallel Envs: 4096
-Stage-B: Training BG + Thalamus + Cerebellum + PredHead (316575 params)
-Starting Vectorized PPO Training (4096 envs, 128 steps/upd)...
