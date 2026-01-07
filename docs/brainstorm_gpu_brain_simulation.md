@@ -246,4 +246,212 @@ The constraint is purely an engineering problem. By reframing synapses as **emer
 
 ---
 
-*Document created from brainstorming session, January 6, 2026*
+## 10. Critical Review (January 7, 2026)
+
+After reflection, several fundamental flaws were identified in the initial proposals.
+
+### 10.1 Float Encoding: Wrong Problem
+
+**The flaw:** Conflating neuron identity with neuron state.
+
+```python
+# What we proposed:
+float_value = 0.735421  # represents "neuron #X in state Y"
+
+# The problem:
+neuron_id = 3141592     # WHICH neuron (identity)
+neuron_state = firing   # WHAT it's doing (state)
+# These are two different things - both needed separately
+```
+
+**The fix:** Use hierarchical indexing instead:
+
+```python
+neuron_address = (region_id << 24) | (column_id << 12) | neuron_id
+# Fits in 32 bits, clearly interpretable
+```
+
+**Verdict:** Overengineered solution to the wrong problem.
+
+### 10.2 "No Storage" Claim: Self-Deception
+
+**The flaw:** Collections still require storage.
+
+```python
+# Our code:
+self.collections = {}              # collection_id → set of neuron indices
+self.neuron_to_collections = {}    # neuron → list of collection_ids
+
+# If neuron participates in 100 collections: 100 × 8 bytes = 800 bytes/neuron
+# 86B neurons × 800 bytes = 68.8 TB
+```
+
+We just changed the data structure from `(pre, post, weight)` to `(collection, members)`. Both scale with number of connections.
+
+**Verdict:** Moved the storage, didn't eliminate it.
+
+### 10.3 Missing Synaptic Weights: Information Loss
+
+**The flaw:** Binary membership loses learned information.
+
+```python
+# Traditional synapse:
+synapse = (pre=n1, post=n2, weight=0.73)  # strength encoded
+
+# Our collection:
+collection = {n1, n2, n5}  # binary: in or out
+# How strongly do they interact? Unknown!
+```
+
+Synaptic strength IS the learned information. A weight of 0.1 vs 0.9 encodes different relationships.
+
+**Verdict:** Fatal information loss.
+
+### 10.4 Missing Propagation Mechanism
+
+**The flaw:** How do collections cause future firing?
+
+```python
+# Traditional network:
+next_activity = W @ current_activity  # matrix multiply propagates
+
+# Our collections:
+next_collection = ???  # never specified!
+```
+
+We need inter-collection connectivity, which brings back storage:
+
+```python
+self.collection_weights = {(coll_i, coll_j): weight}
+# Or: self.W_collections = SparseTensor(n_collections, n_collections)
+```
+
+**Verdict:** Incomplete specification.
+
+### 10.5 "Remapping" Misconception: Information Theory Violation
+
+**The flaw:** Can't decompress 5M parameters into 100T parameters.
+
+```python
+# Collections: 100K collections × 50 connections = 5M parameters
+# Full brain: 100T synapses = 100T parameters
+# Compression ratio: 20,000,000:1
+
+# This is like expecting:
+# 100 KB compressed image → "enhance" to 100 MB full resolution
+# The detail was LOST during compression, can't be recovered
+```
+
+**Verdict:** Violates information theory.
+
+---
+
+## 11. What Actually Works (Salvaged Ideas)
+
+### 11.1 Hierarchical Sparse Compression
+
+The instinct about compression is correct. Here's how to do it right:
+
+```python
+class HierarchicalBrain:
+    # Level 1: Brain regions (10-100 regions)
+    regions = [Region(name="V1", neurons=140M), ...]
+    
+    # Level 2: Cortical columns (~100K columns of ~100 neurons)
+    # This is what "collections" should be
+    
+    # Level 3: Local connectivity (implicit)
+    # Neurons within column: dense, computed from indices
+    
+    # Level 4: Regional connectivity (sparse matrix)
+    # Columns → Columns within region: 15% sparse
+    
+    # Level 5: Long-range (explicit list)
+    # Region → Region: stored as edge list
+```
+
+**Storage estimate:**
+
+| Level | Type | Storage |
+|-------|------|---------|
+| Local (80%) | Computed from distance | ~0 bytes |
+| Regional (15%) | Sparse matrix | ~100 GB |
+| Long-range (5%) | Explicit edge list | ~50 GB |
+| **Total** | | **~150 GB** |
+
+This is a **6000× reduction** from naive 860 TB, using biological structure.
+
+### 11.2 Collections = Cortical Minicolumns
+
+The collection idea maps to real biology:
+
+- Cortical minicolumns: ~100 neurons that function as a unit
+- Our collections are essentially Level 2 of the hierarchy
+- Valid as long as we add Levels 3-5
+
+### 11.3 Temporal Correlation for Hebbian Learning
+
+This part is genuinely good:
+
+```
+Time t:   neurons [n₁, n₅, n₂₇] fire together
+Time t+Δ: same neurons fire again
+Result:   strengthen their grouping
+```
+
+This IS Hebbian learning at the population level.
+
+### 11.4 Modular Training Strategy
+
+```python
+# Phase 1: Train regions independently
+V1 = train_visual_cortex(images)
+A1 = train_auditory_cortex(audio)
+
+# Phase 2: Initialize inter-region connections sparsely
+brain.inter_region_W = initialize_sparse()
+
+# Phase 3: Train integration
+train_integration(brain)
+
+# Phase 4: Fine-tune end-to-end (optional)
+```
+
+This is modular composition, not "remapping."
+
+---
+
+## 12. Revised Verdict
+
+### What Was Clever
+
+| Idea | Status | Notes |
+|------|--------|-------|
+| Temporal correlation | ✅ Valid | Real Hebbian mechanism |
+| Hierarchical locality (80/15/5) | ✅ Valid | Biologically accurate, 6000× compression |
+| Collections as compute units | ✅ Valid | Maps to cortical minicolumns |
+| GPU-friendly batching | ✅ Valid | Temporal windows work |
+
+### What Was Flawed
+
+| Idea | Status | Notes |
+|------|--------|-------|
+| "No storage" claim | ❌ Wrong | Just changed data structure |
+| Float encoding scheme | ❌ Wrong | Solves wrong problem |
+| Missing synaptic weights | ❌ Wrong | Binary membership loses information |
+| No inter-collection dynamics | ❌ Incomplete | Can't propagate activity |
+| "Remapping" expansion | ❌ Wrong | Violates information theory |
+
+### Realistic Path Forward
+
+1. Use collections as **cortical minicolumns** (Level 2)
+2. Add explicit **inter-column connectivity** with weights (Level 3-4)
+3. Keep **synaptic weight gradation** (not binary)
+4. Train **incrementally** (don't expect magical transfer)
+5. Accept storage scales with connections, but use **hierarchy to reduce**
+
+**Realistic estimate:** 150-500 GB for 86B neurons. Not 0 GB, but manageable on a workstation.
+
+---
+
+*Critical review added January 7, 2026*
