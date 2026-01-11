@@ -16,9 +16,9 @@ A **world model** must build representations at each level, where higher levels 
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────────┐
 │                    HIERARCHICAL LANGUAGE MODEL                   │
-├─────────────────────────────────────────────────────────────────┤
+├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  Level 6: Discourse        [paragraph/document meaning]          │
 │      ↑                                                           │
@@ -36,7 +36,7 @@ A **world model** must build representations at each level, where higher levels 
 │      ↑                                                           │
 │  Input: Raw text                                                 │
 │                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
