@@ -2,8 +2,15 @@ node_modules
 *.pth
 checkpoints/
 backups_pth/
+archived_models/
 __pycache__/
 .venv/
 *.log
 *.txt
 *.pid
+*.json
+*.jsonl
+*.csv
+*.zip
+*.gz
+*.tar

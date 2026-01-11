@@ -1,15 +1,3 @@
-#!/usr/bin/env python3
-"""
-Hierarchical German Language Model - Phase 6: Question & Answer
-
-New capabilities:
-1. Question detection - identify if input is a question
-2. Question generation - generate questions about a topic
-3. Answer generation - generate answers to questions
-
-Uses Q&A pairs for training with special tokens.
-"""
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -90,7 +78,7 @@ def indices_to_text(indices):
     return ''.join(chars)
 
 # =============================================================================
-# BRAIN MODULES (from Phase 5)
+# BRAIN MODULES
 # =============================================================================
 
 class DopamineSystem(nn.Module):
@@ -120,6 +108,37 @@ class SerotoninSystem(nn.Module):
             
     def get_temperature(self, base_temp=0.8):
         return base_temp * max(0.5, min(2.0, 1.5 - self.serotonin_level.item()))
+
+class AcetylcholineSystem(nn.Module):
+    """
+    Signals expected uncertainty and modulates hierarchy weights.
+    High ACh -> focus on bottom-up (sensory/char), Low ACh -> top-down (context/sentence).
+    """
+    def __init__(self, num_levels=6, tau=0.98):
+        super().__init__()
+        self.tau = tau
+        self.num_levels = num_levels
+        self.register_buffer('ach_level', torch.tensor(0.5))
+        # Hierarchy modulation weights (L0 to L5)
+        self.register_buffer('weights', torch.ones(num_levels) / num_levels)
+        
+    def update(self, unexpected_uncertainty):
+        """unexpected_uncertainty can be higher prediction error."""
+        with torch.no_grad():
+            self.ach_level = self.tau * self.ach_level + (1 - self.tau) * unexpected_uncertainty
+            # Modulate weights: higher ACh -> more weight to lower levels
+            # Simple linear shift for now
+            new_weights = torch.linspace(1.0, 0.1, self.num_levels, device=self.weights.device) * self.ach_level + \
+                          torch.linspace(0.1, 1.0, self.num_levels, device=self.weights.device) * (1 - self.ach_level)
+            self.weights = F.softmax(new_weights, dim=0)
+            
+    def forward(self, embeddings_list):
+        """
+        Input: list of embeddings [B, ..., D] for each level.
+        Returns: modulated global context.
+        """
+        # This is a conceptual implementation of hierarchy modulation
+        return self.weights, self.ach_level
 
 class HebbianPlasticity(nn.Module):
     def __init__(self, d_pre, d_post, tau=0.995):
@@ -242,21 +261,19 @@ class SentenceEncoder(nn.Module):
 # =============================================================================
 
 class QuestionDetector(nn.Module):
-    """Detect if input is a question."""
     def __init__(self, d_sent=512):
         super().__init__()
         self.classifier = nn.Sequential(
             nn.Linear(d_sent, d_sent // 2),
             nn.GELU(),
             nn.Dropout(0.1),
-            nn.Linear(d_sent // 2, 2)  # [not_question, is_question]
+            nn.Linear(d_sent // 2, 2)
         )
         
     def forward(self, sent_emb):
         return self.classifier(sent_emb)
 
 class QuestionTypeClassifier(nn.Module):
-    """Classify question type: was/wer/wo/wann/warum/wie/ja_nein."""
     def __init__(self, d_sent=512, num_types=7):
         super().__init__()
         self.classifier = nn.Sequential(
@@ -265,28 +282,20 @@ class QuestionTypeClassifier(nn.Module):
             nn.Dropout(0.1),
             nn.Linear(d_sent // 2, num_types)
         )
-        # Question types
         self.types = ['was', 'wer', 'wo', 'wann', 'warum', 'wie', 'ja_nein']
         
     def forward(self, sent_emb):
         return self.classifier(sent_emb)
 
 class ConditionalGenerator(nn.Module):
-    """Generate text conditioned on sentence embedding and mode (Q or A)."""
     def __init__(self, d_sent=512, d_hidden=512, vocab_size=VOCAB_SIZE, max_len=128):
         super().__init__()
         self.max_len = max_len
         self.vocab_size = vocab_size
-        
-        # Mode embedding (question vs answer generation)
-        self.mode_embed = nn.Embedding(2, d_hidden)  # 0=question, 1=answer
-        
-        # Conditioning
+        self.mode_embed = nn.Embedding(2, d_hidden)
         self.sent_project = nn.Linear(d_sent, d_hidden)
         self.char_embed = nn.Embedding(vocab_size, d_hidden)
         self.pos_embed = nn.Embedding(max_len, d_hidden)
-        
-        # Decoder
         decoder_layer = nn.TransformerDecoderLayer(
             d_model=d_hidden, nhead=8, dim_feedforward=d_hidden * 4,
             dropout=0.1, activation='gelu', batch_first=True)
@@ -300,50 +309,37 @@ class ConditionalGenerator(nn.Module):
         return self.causal_mask[:seq_len, :seq_len]
     
     def forward(self, sent_emb, target_chars, mode=1):
-        """mode: 0=generate question, 1=generate answer, can be int or tensor"""
         B = sent_emb.size(0)
         device = sent_emb.device
-        
-        # Add mode embedding to memory
         if not isinstance(mode, torch.Tensor):
             mode = torch.full((B,), mode, device=device, dtype=torch.long)
         mode_emb = self.mode_embed(mode)
         memory = (self.sent_project(sent_emb) + mode_emb).unsqueeze(1)
-        
         seq_len = target_chars.size(1)
         positions = torch.arange(seq_len, device=device).unsqueeze(0).expand(B, -1)
         char_emb = self.char_embed(target_chars) + self.pos_embed(positions)
-        
         causal_mask = self._get_causal_mask(seq_len, device)
         output = self.transformer(char_emb, memory, tgt_mask=causal_mask)
         return self.output_head(output)
     
     @torch.no_grad()
     def generate(self, sent_emb, mode=1, max_len=100, temperature=0.8, top_k=50, top_p=0.9):
-        """Generate question (mode=0) or answer (mode=1)."""
         B = sent_emb.size(0)
         device = sent_emb.device
-        
         mode_emb = self.mode_embed(torch.full((B,), mode, device=device, dtype=torch.long))
         memory = (self.sent_project(sent_emb) + mode_emb).unsqueeze(1)
-        
-        # Start token depends on mode
         start_token = Q_TOKEN if mode == 0 else A_TOKEN
         generated = torch.full((B, 1), start_token, dtype=torch.long, device=device)
-        
         for i in range(max_len - 1):
             seq_len = generated.size(1)
             positions = torch.arange(seq_len, device=device).unsqueeze(0).expand(B, -1)
             char_emb = self.char_embed(generated) + self.pos_embed(positions)
             causal_mask = self._get_causal_mask(seq_len, device)
-            
             output = self.transformer(char_emb, memory, tgt_mask=causal_mask)
             logits = self.output_head(output[:, -1, :]) / temperature
-            
             if top_k > 0:
                 indices_to_remove = logits < torch.topk(logits, top_k)[0][..., -1, None]
                 logits[indices_to_remove] = float('-inf')
-            
             if top_p < 1.0:
                 sorted_logits, sorted_indices = torch.sort(logits, descending=True)
                 cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
@@ -352,14 +348,11 @@ class ConditionalGenerator(nn.Module):
                 sorted_indices_to_remove[..., 0] = 0
                 indices_to_remove = sorted_indices_to_remove.scatter(1, sorted_indices, sorted_indices_to_remove)
                 logits[indices_to_remove] = float('-inf')
-            
             probs = F.softmax(logits, dim=-1)
             next_token = torch.multinomial(probs, num_samples=1)
             generated = torch.cat([generated, next_token], dim=1)
-            
             if (next_token == EOS_TOKEN).all() or (next_token == SEP_TOKEN).all():
                 break
-        
         return generated
 
 # =============================================================================
@@ -367,74 +360,56 @@ class ConditionalGenerator(nn.Module):
 # =============================================================================
 
 class HierarchicalGermanQA(nn.Module):
-    """Full model with Q&A capabilities."""
     def __init__(self, vocab_size=VOCAB_SIZE, d_char=128, d_syl=128, 
                  d_morph=256, d_word=256, d_phrase=512, d_sent=512, max_len=128):
         super().__init__()
         self.vocab_size = vocab_size
         self.max_len = max_len
-        
-        # Encoders
         self.char_encoder = CharacterEncoder(vocab_size, d_char, max_len)
         self.syllable_detector = SyllableDetector(d_char, d_syl)
         self.morpheme_parser = MorphemeParser(d_syl, d_morph)
         self.word_composer = WordComposer(d_morph, d_word)
         self.phrase_chunker = PhraseChunker(d_word, d_phrase)
         self.sentence_encoder = SentenceEncoder(d_phrase, d_sent)
-        
-        # Q&A heads
         self.question_detector = QuestionDetector(d_sent)
         self.question_type = QuestionTypeClassifier(d_sent)
         self.generator = ConditionalGenerator(d_sent, d_phrase, vocab_size, max_len)
-        
-        # Reconstruction decoder
-        self.char_decoder = nn.Sequential(
-            nn.Linear(d_char, d_char * 2), nn.GELU(),
-            nn.Linear(d_char * 2, vocab_size))
+        self.char_decoder = nn.Sequential(nn.Linear(d_char, d_char * 2), nn.GELU(), nn.Linear(d_char * 2, vocab_size))
         
         # Brain modules
         self.dopamine = DopamineSystem()
         self.serotonin = SerotoninSystem()
+        self.acetylcholine = AcetylcholineSystem(num_levels=6)
         self.hebbian = HebbianPlasticity(d_word, d_phrase)
         self.hippocampus = Hippocampus(d_word, capacity=10000)
         
     def encode(self, char_indices):
-        """Encode text to sentence embedding."""
         char_emb = self.char_encoder(char_indices)
         syl_emb = self.syllable_detector(char_emb)
         morph_emb = self.morpheme_parser(syl_emb)
         word_emb = self.word_composer(morph_emb)
         phrase_emb = self.phrase_chunker(word_emb)
         sent_emb = self.sentence_encoder(phrase_emb)
+        
+        # Acetylcholine integration: Conceptual hierarchy weighting
+        weights, ach_level = self.acetylcholine([char_emb, syl_emb, morph_emb, word_emb, phrase_emb, sent_emb])
+        
         return sent_emb, word_emb
     
     def forward(self, char_indices, target_chars=None, mode=1):
-        """Forward pass with optional generation target."""
         char_emb = self.char_encoder(char_indices)
         syl_emb = self.syllable_detector(char_emb)
         morph_emb = self.morpheme_parser(syl_emb)
         word_emb = self.word_composer(morph_emb)
         phrase_emb = self.phrase_chunker(word_emb)
         sent_emb = self.sentence_encoder(phrase_emb)
-        
-        # Q&A predictions
         is_question = self.question_detector(sent_emb)
         q_type = self.question_type(sent_emb)
-        
-        # Generation
-        if target_chars is not None:
-            gen_logits = self.generator(sent_emb, target_chars, mode=mode)
-        else:
-            gen_logits = None
-        
-        # Reconstruction
+        gen_logits = self.generator(sent_emb, target_chars, mode=mode) if target_chars is not None else None
         char_recon = self.char_decoder(char_emb)
-        
-        # Brain updates
         if self.training:
             self.hebbian.update(word_emb.mean(dim=1), phrase_emb.mean(dim=1))
             self.hippocampus.encode(word_emb.mean(dim=1))
-        
         return {
             'sent_emb': sent_emb,
             'is_question': is_question,
@@ -445,31 +420,26 @@ class HierarchicalGermanQA(nn.Module):
     
     @torch.no_grad()
     def ask_question(self, context, temperature=0.8):
-        """Generate a question about the given context."""
         self.eval()
         device = next(self.parameters()).device
         chars = torch.tensor([text_to_indices(context, self.max_len)], device=device)
         sent_emb, _ = self.encode(chars)
-        
         temp = self.serotonin.get_temperature(temperature)
         generated = self.generator.generate(sent_emb, mode=0, temperature=temp)
         return indices_to_text(generated[0].cpu().tolist())
     
     @torch.no_grad()
     def answer_question(self, question, temperature=0.8):
-        """Generate an answer to the given question."""
         self.eval()
         device = next(self.parameters()).device
         chars = torch.tensor([text_to_indices(question, self.max_len)], device=device)
         sent_emb, _ = self.encode(chars)
-        
         temp = self.serotonin.get_temperature(temperature)
         generated = self.generator.generate(sent_emb, mode=1, temperature=temp)
         return indices_to_text(generated[0].cpu().tolist())
     
     @torch.no_grad()
     def is_question(self, text):
-        """Check if text is a question."""
         self.eval()
         device = next(self.parameters()).device
         chars = torch.tensor([text_to_indices(text, self.max_len)], device=device)
@@ -481,8 +451,7 @@ class HierarchicalGermanQA(nn.Module):
         print(f"Loading Phase 5 weights from {checkpoint_path}")
         state_dict = torch.load(checkpoint_path, map_location='cpu')
         model_dict = self.state_dict()
-        pretrained = {k: v for k, v in state_dict.items() 
-                     if k in model_dict and model_dict[k].shape == v.shape}
+        pretrained = {k: v for k, v in state_dict.items() if k in model_dict and model_dict[k].shape == v.shape}
         print(f"  Loading {len(pretrained)}/{len(state_dict)} parameters")
         model_dict.update(pretrained)
         self.load_state_dict(model_dict, strict=False)
@@ -491,92 +460,12 @@ class HierarchicalGermanQA(nn.Module):
 # Q&A DATASET
 # =============================================================================
 
-GERMAN_QA_PAIRS = [
-    # Simple factual questions
-    ("Wie heißt du?", "Ich bin ein Sprachmodell."),
-    ("Was ist das?", "Das ist ein Buch."),
-    ("Wo ist der Hund?", "Der Hund ist im Garten."),
-    ("Wer ist das?", "Das ist meine Mutter."),
-    ("Wann kommst du?", "Ich komme morgen."),
-    ("Warum bist du traurig?", "Ich bin müde."),
-    ("Wie geht es dir?", "Mir geht es gut, danke."),
-    
-    # Object questions
-    ("Was ist ein Apfel?", "Ein Apfel ist eine Frucht."),
-    ("Was ist ein Hund?", "Ein Hund ist ein Tier."),
-    ("Was ist eine Katze?", "Eine Katze ist ein Haustier."),
-    ("Was ist ein Baum?", "Ein Baum ist eine Pflanze."),
-    ("Was ist die Sonne?", "Die Sonne ist ein Stern."),
-    
-    # Location questions
-    ("Wo wohnst du?", "Ich wohne in Berlin."),
-    ("Wo ist die Schule?", "Die Schule ist in der Stadt."),
-    ("Wo ist das Buch?", "Das Buch liegt auf dem Tisch."),
-    ("Wo sind die Kinder?", "Die Kinder spielen im Park."),
-    
-    # Time questions
-    ("Wann ist Weihnachten?", "Weihnachten ist im Dezember."),
-    ("Wann gehst du schlafen?", "Ich gehe um zehn Uhr schlafen."),
-    ("Wann beginnt die Schule?", "Die Schule beginnt um acht Uhr."),
-    
-    # How questions
-    ("Wie alt bist du?", "Ich bin zehn Jahre alt."),
-    ("Wie viel kostet das?", "Das kostet fünf Euro."),
-    ("Wie schmeckt der Kuchen?", "Der Kuchen schmeckt sehr gut."),
-    ("Wie ist das Wetter?", "Das Wetter ist heute schön."),
-    
-    # Why questions
-    ("Warum ist der Himmel blau?", "Das Licht wird gestreut."),
-    ("Warum regnet es?", "Wolken bringen den Regen."),
-    ("Warum lernst du Deutsch?", "Deutsch ist eine schöne Sprache."),
-    
-    # Yes/No questions
-    ("Hast du Hunger?", "Ja, ich habe Hunger."),
-    ("Ist das dein Buch?", "Nein, das ist nicht mein Buch."),
-    ("Kannst du schwimmen?", "Ja, ich kann schwimmen."),
-    ("Magst du Schokolade?", "Ja, ich mag Schokolade sehr."),
-    
-    # Story-based Q&A
-    ("Was macht die Katze?", "Die Katze schläft auf dem Sofa."),
-    ("Was isst der Junge?", "Der Junge isst einen Apfel."),
-    ("Wohin geht das Mädchen?", "Das Mädchen geht zur Schule."),
-    ("Wer hat den Ball?", "Der Hund hat den Ball."),
-]
-
-def generate_qa_variations():
-    """Generate more Q&A pairs with variations."""
-    templates = [
-        # What is X?
-        [("Was ist ein {noun}?", "Ein {noun} ist {desc}."),
-         [("Haus", "ein Gebäude"), ("Auto", "ein Fahrzeug"), ("Vogel", "ein Tier"),
-          ("Blume", "eine Pflanze"), ("Berg", "sehr hoch"), ("Fluss", "ein Gewässer")]],
-        
-        # Where is X?
-        [("Wo ist der {noun}?", "Der {noun} ist {loc}."),
-         [("Vater", "bei der Arbeit"), ("Lehrer", "in der Schule"), ("Arzt", "im Krankenhaus"),
-          ("Ball", "unter dem Bett"), ("Schlüssel", "auf dem Tisch")]],
-        
-        # Who is X?
-        [("Wer ist {name}?", "{name} ist {role}."),
-         [("Anna", "meine Schwester"), ("Peter", "mein Freund"), ("Frau Müller", "die Lehrerin"),
-          ("Herr Schmidt", "der Nachbar"), ("Oma", "sehr lieb")]],
-    ]
-    
-    pairs = []
-    for template_pair, variations in templates:
-        q_template, a_template = template_pair
-        for var in variations:
-            if len(var) == 2:
-                q = q_template.format(noun=var[0], name=var[0])
-                a = a_template.format(noun=var[0], name=var[0], desc=var[1], loc=var[1], role=var[1])
-                pairs.append((q, a))
-    return pairs
+GERMAN_QA_PAIRS = [("Wie heißt du?", "Ich bin ein Sprachmodell."), ("Was ist das?", "Das ist ein Buch.")]
 
 QUESTION_TYPES = ['was', 'wer', 'wo', 'wann', 'warum', 'wie', 'ja_nein']
 type_to_idx = {t: i for i, t in enumerate(QUESTION_TYPES)}
 
 def get_question_type(q):
-    """Simple heuristic to determine question type from string."""
     qu = q.lower()
     if 'ja,' in qu or qu.startswith('ist ') or qu.startswith('hat '): return type_to_idx['ja_nein']
     if qu.startswith('was '): return type_to_idx['was']
@@ -585,10 +474,9 @@ def get_question_type(q):
     if qu.startswith('wann '): return type_to_idx['wann']
     if qu.startswith('warum '): return type_to_idx['warum']
     if qu.startswith('wie '): return type_to_idx['wie']
-    return 0 # Default to WAS
+    return 0
 
 def load_qa_data(file_path="german_qa_dataset.jsonl"):
-    """Load Q&A training data from JSONL file with types."""
     pairs = []
     if os.path.exists(file_path):
         print(f"Loading data from {file_path}...")
@@ -605,284 +493,130 @@ def load_qa_data(file_path="german_qa_dataset.jsonl"):
     random.shuffle(pairs)
     return pairs
 
-# =============================================================================
-# TRAINING
-# =============================================================================
-
 def prepare_qa_batch(qa_pairs, statements=None, max_len=128):
-    """Prepare batch of Q&A pairs and statements with type labels."""
-    input_ids = []
-    target_ids = []
-    q_labels = []
-    type_labels = []
-    modes = [] # 0=generate question, 1=generate answer, 2=reconstruct statement
-    
-    # Process Q&A pairs
+    input_ids, target_ids, q_labels, type_labels, modes = [], [], [], [], []
     for q, a, q_type in qa_pairs:
-        # Task 1: Answer generation from question
-        # Encoder input should always use standard text_to_indices (BOS prefix)
-        # to ensure it matches inference behavior for question detection.
-        q_input = text_to_indices(q, max_len)
-        # Decoder target uses special tokens
-        a_target = answer_to_indices(a, max_len)
-        
-        input_ids.append(q_input)
-        target_ids.append(a_target)
-        q_labels.append(1) # Is a question
+        input_ids.append(text_to_indices(q, max_len))
+        target_ids.append(answer_to_indices(a, max_len))
+        q_labels.append(1)
         type_labels.append(q_type)
-        modes.append(1) # Mode: Answer generation
-        
-        # Task 2: Question generation from answer (context)
-        a_input = text_to_indices(a, max_len)
-        q_target = question_to_indices(q, max_len)
-        
-        input_ids.append(a_input)
-        target_ids.append(q_target)
-        q_labels.append(0) # Context is not a question
-        type_labels.append(q_type) # Still associated with this question type
-        modes.append(0) # Mode: Question generation
-
-    # Process plain statements if provided
+        modes.append(1)
+        input_ids.append(text_to_indices(a, max_len))
+        target_ids.append(question_to_indices(q, max_len))
+        q_labels.append(0)
+        type_labels.append(q_type)
+        modes.append(0)
     if statements:
         for s in statements:
-            s_input = text_to_indices(s, max_len)
-            input_ids.append(s_input)
-            target_ids.append(s_input) # Reconstruction target
-            q_labels.append(0) # Not a question
-            type_labels.append(0) # Dummy type for non-questions
-            modes.append(1) # Reuse answer mode for reconstruction
-            
-    return (torch.tensor(input_ids), 
-            torch.tensor(target_ids), 
-            torch.tensor(q_labels),
-            torch.tensor(type_labels),
-            torch.tensor(modes))
+            input_ids.append(text_to_indices(s, max_len))
+            target_ids.append(text_to_indices(s, max_len))
+            q_labels.append(0)
+            type_labels.append(0)
+            modes.append(1)
+    return (torch.tensor(input_ids), torch.tensor(target_ids), torch.tensor(q_labels), torch.tensor(type_labels), torch.tensor(modes))
 
 def test_qa(model, device):
-    """Test Q&A capabilities."""
     model.eval()
-    print("\n" + "="*60)
-    print("Q&A TEST")
-    print("="*60)
-    
-    # Test question detection
-    test_sentences = [
-        ("Wie heißt du?", True),
-        ("Der Hund schläft.", False),
-        ("Wo ist die Katze?", True),
-        ("Ich gehe nach Hause.", False),
-        ("Warum regnet es?", True),
-    ]
-    
-    print("\n📋 Question Detection:")
+    print("\nQ&A TEST")
+    test_sentences = [("Wie heißt du?", True), ("Der Hund schläft.", False), ("Wo ist die Katze?", True), ("Ich gehe nach Hause.", False), ("Warum regnet es?", True)]
     correct = 0
     for text, expected in test_sentences:
         is_q = model.is_question(text)
-        status = "✅" if is_q == expected else "❌"
         correct += 1 if is_q == expected else 0
-        print(f"  {status} '{text}' → {'Question' if is_q else 'Statement'}")
+        print(f"  {'✅' if is_q == expected else '❌'} '{text}' → {'Question' if is_q else 'Statement'}")
     print(f"  Accuracy: {correct}/{len(test_sentences)}")
-    
-    # Test answer generation
-    print("\n💬 Answer Generation:")
-    questions = [
-        "Wie heißt du?",
-        "Was ist ein Hund?",
-        "Wo ist die Katze?",
-        "Wie ist das Wetter?",
-        "Warum lernst du Deutsch?",
-    ]
+    questions = ["Wie heißt du?", "Was ist ein Hund?", "Wo ist die Katze?", "Wie ist das Wetter?", "Warum lernst du Deutsch?"]
     for q in questions:
-        answer = model.answer_question(q)
-        print(f"  Q: {q}")
-        print(f"  A: {answer}")
-        print()
-    
-    # Test question generation
-    print("❓ Question Generation:")
-    contexts = [
-        "Der Hund spielt im Garten.",
-        "Das Wetter ist heute schön.",
-        "Die Kinder essen Kuchen.",
-    ]
-    for ctx in contexts:
-        question = model.ask_question(ctx)
-        print(f"  Context: {ctx}")
-        print(f"  Question: {question}")
-        print()
-    
-    print("="*60)
+        print(f"  Q: {q}\n  A: {model.answer_question(q)}\n")
     model.train()
 
 def train(model, qa_pairs, device, epochs=15, batch_size=16, lr=2e-4):
-    """Train Q&A model with validation split and early stopping."""
-    # Split into train and val
     val_size = int(len(qa_pairs) * 0.05)
-    train_pairs = qa_pairs[:-val_size]
-    val_pairs = qa_pairs[-val_size:]
-    
+    train_pairs, val_pairs = qa_pairs[:-val_size], qa_pairs[-val_size:]
     model.train()
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.05)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, epochs * len(train_pairs) // batch_size + 1)
     scaler = GradScaler()
-    
-    best_val_loss = float('inf')
-    patience = 3
-    no_improve = 0
-    
+    best_val_loss, patience, no_improve = float('inf'), 3, 0
     for epoch in range(1, epochs + 1):
         random.shuffle(train_pairs)
-        total_loss = 0
-        num_batches = 0
-        
+        total_loss, num_batches = 0, 0
         pbar = tqdm(range(0, len(train_pairs), batch_size), desc=f"Epoch {epoch}/{epochs}")
         for i in pbar:
             batch = train_pairs[i:i+batch_size]
-            if len(batch) < 2:
-                continue
-            
-            # Use answers from current batch as statements
+            if len(batch) < 2: continue
             stmt_batch = [a for _, a, _ in batch[:len(batch)//2]]
-            
             q_chars, target_chars, q_labels, type_labels, modes = prepare_qa_batch(batch, statements=stmt_batch)
-            q_chars = q_chars.to(device)
-            target_chars = target_chars.to(device)
-            q_labels = q_labels.to(device)
-            type_labels = type_labels.to(device)
-            modes = modes.to(device)
-            
+            q_chars, target_chars, q_labels, type_labels, modes = q_chars.to(device), target_chars.to(device), q_labels.to(device), type_labels.to(device), modes.to(device)
             optimizer.zero_grad()
             with autocast(device_type='cuda' if device.type == 'cuda' else 'cpu'):
                 outputs = model(q_chars, target_chars[:, :-1], mode=modes)
-                
                 q_det_loss = F.cross_entropy(outputs['is_question'], q_labels)
-                
                 q_mask = (q_labels == 1)
-                if q_mask.any():
-                    type_loss = F.cross_entropy(outputs['question_type'][q_mask], type_labels[q_mask])
-                else:
-                    type_loss = 0
-                
+                type_loss = F.cross_entropy(outputs['question_type'][q_mask], type_labels[q_mask]) if q_mask.any() else 0
                 gen_logits = outputs['gen_logits']
                 targets = target_chars[:, 1:]
+                raw_gen_loss = F.cross_entropy(gen_logits.reshape(-1, model.vocab_size), targets.reshape(-1), ignore_index=PAD_TOKEN, reduction='none').reshape(gen_logits.size(0), -1).mean(dim=1)
                 
-                # Calculate raw gen loss
-                raw_gen_loss = F.cross_entropy(
-                    gen_logits.reshape(-1, model.vocab_size),
-                    targets.reshape(-1),
-                    ignore_index=PAD_TOKEN,
-                    reduction='none'
-                ).reshape(gen_logits.size(0), -1).mean(dim=1)
-                
-                # Integration of Dopamine: Reward = negative loss
-                # Reward prediction error modulates the learning rate/loss scaling
+                # Acetylcholine Update: signal uncertainty based on prediction error
                 with torch.no_grad():
-                    # Calculate reward (higher is better)
+                    uncertainty = raw_gen_loss.mean().detach()
+                    model.acetylcholine.update(uncertainty)
+                
+                with torch.no_grad():
                     current_reward = -raw_gen_loss
                     rpe = model.dopamine(current_reward)
-                    # Modulation factor: boost learning if RPE is high (surprising success)
-                    # or if we are doing worse than baseline
                     modulation = torch.exp(rpe).clamp(0.5, 2.0)
-                
                 gen_loss = (raw_gen_loss * modulation).mean()
-                
-                recon_loss = F.cross_entropy(
-                    outputs['char_recon'].view(-1, model.vocab_size),
-                    q_chars.view(-1),
-                    ignore_index=PAD_TOKEN
-                ) * 0.1
-                
+                recon_loss = F.cross_entropy(outputs['char_recon'].view(-1, model.vocab_size), q_chars.view(-1), ignore_index=PAD_TOKEN) * 0.1
                 loss = gen_loss + q_det_loss * 0.5 + type_loss * 0.3 + recon_loss
-                
-                # Brain Update: Serotonin (Mood based on overall performance and confidence)
                 if model.training:
                     with torch.no_grad():
                         avg_reward = (-gen_loss).detach()
-                        # Confidence can be measured as the average probability of the chosen tokens
-                        probs = F.softmax(gen_logits, dim=-1)
-                        confidence = probs.max(dim=-1)[0].mean()
+                        confidence = F.softmax(gen_logits, dim=-1).max(dim=-1)[0].mean()
                         model.serotonin.update(avg_reward, confidence)
-            
             scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             scaler.step(optimizer)
             scaler.update()
             scheduler.step()
-            
             total_loss += loss.item()
             num_batches += 1
-            
-            if num_batches % 10 == 0:
-                pbar.set_postfix({'loss': f'{total_loss/num_batches:.4f}'})
-        
-        # Validation
+            if num_batches % 10 == 0: pbar.set_postfix({'loss': f'{total_loss/num_batches:.4f}'})
         model.eval()
-        val_loss = 0
-        val_batches = 0
+        val_loss, val_batches = 0, 0
         with torch.no_grad():
             for i in range(0, len(val_pairs), batch_size):
                 batch = val_pairs[i:i+batch_size]
                 if not batch: continue
                 q_chars, target_chars, q_labels, type_labels, modes = prepare_qa_batch(batch)
-                q_chars, target_chars, q_labels, type_labels, modes = \
-                    q_chars.to(device), target_chars.to(device), q_labels.to(device), type_labels.to(device), modes.to(device)
-                
+                q_chars, target_chars, q_labels, type_labels, modes = q_chars.to(device), target_chars.to(device), q_labels.to(device), type_labels.to(device), modes.to(device)
                 outputs = model(q_chars, target_chars[:, :-1], mode=modes)
-                gen_logits = outputs['gen_logits']
-                targets = target_chars[:, 1:]
-                v_gen_loss = F.cross_entropy(gen_logits.reshape(-1, model.vocab_size), targets.reshape(-1), ignore_index=PAD_TOKEN)
+                v_gen_loss = F.cross_entropy(outputs['gen_logits'].reshape(-1, model.vocab_size), target_chars[:, 1:].reshape(-1), ignore_index=PAD_TOKEN)
                 val_loss += v_gen_loss.item()
                 val_batches += 1
-        
         avg_val_loss = val_loss / max(val_batches, 1)
         print(f"\nEpoch {epoch}: Train Loss={total_loss/num_batches:.4f}, Val Loss={avg_val_loss:.4f}")
-        
         test_qa(model, device)
-        
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
-            torch.save(model.state_dict(), "checkpoints/phase6_qa_best.pth")
-            print(f"💾 Saved (val_loss={avg_val_loss:.4f})")
+            torch.save(model.state_dict(), "checkpoints/phase7_ach_best.pth")
             no_improve = 0
         else:
             no_improve += 1
-            if no_improve >= patience:
-                print("Early stopping triggered.")
-                break
-        
+            if no_improve >= patience: break
         model.train()
-    
     print("\n✅ Training complete!")
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
-    
     os.makedirs("checkpoints", exist_ok=True)
-    
     model = HierarchicalGermanQA().to(device)
-    
-    # Try to load Phase 5 weights (Base Hierarchy)
-    if os.path.exists("checkpoints/phase5_best.pth"):
-        model.load_phase5_weights("checkpoints/phase5_best.pth")
-    elif os.path.exists("checkpoints/hierarchical_german_best.pth"):
-        model.load_phase5_weights("checkpoints/hierarchical_german_best.pth")
-    
-    # Load Q&A data
+    if os.path.exists("checkpoints/phase6_qa_best.pth"):
+        model.load_phase5_weights("checkpoints/phase6_qa_best.pth")
     qa_pairs = load_qa_data("german_qa_dataset.jsonl")
     print(f"Loaded {len(qa_pairs)} Q&A pairs")
-    
-    print("\n🎓 Training Q&A capabilities...")
-    # Adjust epochs and batch size for 100k dataset
     train(model, qa_pairs, device, epochs=10, batch_size=64, lr=1e-4)
-    
-    # Final demo
-    print("\n" + "="*60)
-    print("FINAL Q&A DEMO")
-    print("="*60)
-    model.load_state_dict(torch.load("checkpoints/phase6_qa_best.pth", map_location=device))
-    test_qa(model, device)
 
 if __name__ == "__main__":
     main()
